@@ -1,0 +1,7 @@
+.DS_Store
+*.o
+*.dSYM/
+.debug_objs/
+test_tcapi
+test_tcapi-g
+*.log
