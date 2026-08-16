@@ -1,7 +1,9 @@
 // test_tcapi_itensor.cpp
 #include "tcapi/tcapi.h"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <complex>
 #include <iostream>
 #include <random>
 
@@ -13,6 +15,28 @@ using namespace tcapi;
 bool approx(double a, double b, double eps = 1e-10)
 {
     return std::abs(a - b) < eps;
+}
+
+// -----------------------------------------------------------------------------
+// Helpers for the eig/eigh/exp tests
+// -----------------------------------------------------------------------------
+bool approx_c(std::complex<double> a, std::complex<double> b, double eps = 1e-9)
+{
+    return std::abs(a - b) < eps;
+}
+
+// Real part of element (i, j), works for Real and Cplx element types.
+template<typename T>
+double re_of(ItensorContext& ctx, const tent_t<T>& t, int i, int j)
+{
+    return std::real(get_elem<T>(ctx, t, {i, j}));
+}
+
+// Imaginary part of element (i, j), 0 for Real element types.
+template<typename T>
+double im_of(ItensorContext& ctx, const tent_t<T>& t, int i, int j)
+{
+    return std::imag(get_elem<T>(ctx, t, {i, j}));
 }
 
 // -----------------------------------------------------------------------------
@@ -867,6 +891,392 @@ void test_stack()
     destroy_context(ctx);
     std::cout << "test_stack passed\n";
 }
+// -----------------------------------------------------------------------------
+// Test: exp on general (possibly nonsymmetric) matrices, vs numpy expm
+// -----------------------------------------------------------------------------
+void test_exp_general()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // unprimed matrix from allocate: exp([[1,2],[3,4]]) vs numpy expm
+    auto A = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, A, {0, 0}, 1.0); set_elem<ItensorReal>(ctx, A, {0, 1}, 2.0);
+    set_elem<ItensorReal>(ctx, A, {1, 0}, 3.0); set_elem<ItensorReal>(ctx, A, {1, 1}, 4.0);
+    const tent_t<ItensorReal>& Ac = A;
+    tent_t<ItensorReal> E;
+    exp<ItensorReal>(ctx, Ac, 1, E);
+    const double ref[2][2] = {{51.968956198705, 74.73656456700321},
+                              {112.10484685050484, 164.07380304920986}};
+    for(int i = 0; i < 2; ++i)
+        for(int j = 0; j < 2; ++j)
+            assert(approx(get_elem<ItensorReal>(ctx, E, {i, j}), ref[i][j], 1e-9));
+
+    // unprimed zeros: exp(0) must be the identity
+    auto Z = zeros<ItensorReal>(ctx, {2, 2});
+    const tent_t<ItensorReal>& Zc = Z;
+    tent_t<ItensorReal> Ez;
+    exp<ItensorReal>(ctx, Zc, 1, Ez);
+    for(int i = 0; i < 2; ++i)
+        for(int j = 0; j < 2; ++j)
+            assert(approx(get_elem<ItensorReal>(ctx, Ez, {i, j}), (i == j) ? 1.0 : 0.0, 1e-9));
+
+    // primed matrix from eye: exp(I) = e*I
+    auto Ie = eye<ItensorReal>(ctx, 2);
+    const tent_t<ItensorReal>& Iec = Ie;
+    tent_t<ItensorReal> EI;
+    exp<ItensorReal>(ctx, Iec, 1, EI);
+    for(int i = 0; i < 2; ++i)
+        for(int j = 0; j < 2; ++j)
+            assert(approx(get_elem<ItensorReal>(ctx, EI, {i, j}),
+                          (i == j) ? std::exp(1.0) : 0.0, 1e-8));
+
+    // matrix whose eigenvalues are a complex-conjugate pair (+-i): the
+    // general (non-Hermitian) path must produce exp(rotation) = rotation(1)
+    auto R = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, R, {0, 0}, 0.0);    set_elem<ItensorReal>(ctx, R, {0, 1}, -1.0);
+    set_elem<ItensorReal>(ctx, R, {1, 0}, 1.0);    set_elem<ItensorReal>(ctx, R, {1, 1}, 0.0);
+    const tent_t<ItensorReal>& Rc = R;
+    tent_t<ItensorReal> Er;
+    exp<ItensorReal>(ctx, Rc, 1, Er);
+    const double c1 = std::cos(1.0), s1 = std::sin(1.0);
+    const double rot[2][2] = {{c1, -s1}, {s1, c1}};
+    for(int i = 0; i < 2; ++i)
+        for(int j = 0; j < 2; ++j)
+            assert(approx(get_elem<ItensorReal>(ctx, Er, {i, j}), rot[i][j], 1e-9));
+
+    // complex matrix vs numpy expm
+    auto Mc = allocate<ItensorCplx>(ctx, {2, 2});
+    set_elem<ItensorCplx>(ctx, Mc, {0, 0}, std::complex<double>(1, 2));
+    set_elem<ItensorCplx>(ctx, Mc, {0, 1}, std::complex<double>(3, -1));
+    set_elem<ItensorCplx>(ctx, Mc, {1, 0}, std::complex<double>(0.5, 1));
+    set_elem<ItensorCplx>(ctx, Mc, {1, 1}, std::complex<double>(4, 0));
+    const tent_t<ItensorCplx>& Mcc = Mc;
+    tent_t<ItensorCplx> Ec;
+    exp<ItensorCplx>(ctx, Mcc, 1, Ec);
+    const std::complex<double> refc[2][2] = {
+        {{-8.585875552001859, 20.246596659794477},
+         {55.389092194887105, 38.74135487670492}},
+        {{-10.790019597102356, 21.323250012045726},
+         {63.96453232538542, 46.24535936570373}},
+    };
+    for(int i = 0; i < 2; ++i)
+        for(int j = 0; j < 2; ++j)
+        {
+            auto v = get_elem<ItensorCplx>(ctx, Ec, {i, j});
+            assert(approx_c(v, refc[i][j], 1e-8));
+        }
+
+    destroy_context(ctx);
+    std::cout << "test_exp_general passed\n";
+}
+
+// -----------------------------------------------------------------------------
+// Test: exp on a random unprimed matrix satisfies exp(P)*exp(-P) = I and is
+// repeatable (no mutation of the source).
+// -----------------------------------------------------------------------------
+void test_exp_random_property()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    std::mt19937 rng(1234);
+    auto unif = std::uniform_real_distribution<double>(-1.0, 1.0);
+    auto gen = [&]() { return unif(rng); };
+    auto P = random<ItensorReal>(ctx, {3, 3}, gen);
+    const tent_t<ItensorReal>& Pc = P;
+
+    tent_t<ItensorReal> EP, EM;
+    exp<ItensorReal>(ctx, Pc, 1, EP);
+    // exp(-P): flip sign in a copy
+    auto Pm = P;
+    for(int r = 0; r < 3; ++r)
+        for(int c = 0; c < 3; ++c)
+            set_elem<ItensorReal>(ctx, Pm, {r, c},
+                                  -get_elem<ItensorReal>(ctx, Pm, {r, c}));
+    const tent_t<ItensorReal>& Pmc = Pm;
+    exp<ItensorReal>(ctx, Pmc, 1, EM);
+
+    // positional matrix product EP * EM must be the identity
+    for(int r = 0; r < 3; ++r)
+        for(int c = 0; c < 3; ++c)
+        {
+            double s = 0;
+            for(int k = 0; k < 3; ++k)
+                s += get_elem<ItensorReal>(ctx, EP, {r, k}) * get_elem<ItensorReal>(ctx, EM, {k, c});
+            assert(approx(s, (r == c) ? 1.0 : 0.0, 1e-8));
+        }
+
+    // repeatability + no source mutation
+    double snap[9];
+    for(int r = 0; r < 3; ++r) for(int c = 0; c < 3; ++c)
+        snap[3 * r + c] = get_elem<ItensorReal>(ctx, P, {r, c});
+    tent_t<ItensorReal> EP2;
+    exp<ItensorReal>(ctx, Pc, 1, EP2);
+    for(int r = 0; r < 3; ++r)
+        for(int c = 0; c < 3; ++c)
+        {
+            assert(approx(get_elem<ItensorReal>(ctx, EP, {r, c}),
+                          get_elem<ItensorReal>(ctx, EP2, {r, c}), 1e-12));
+            assert(approx(snap[3 * r + c], get_elem<ItensorReal>(ctx, P, {r, c}), 0.0));
+        }
+
+    destroy_context(ctx);
+    std::cout << "test_exp_random_property passed\n";
+}
+
+// -----------------------------------------------------------------------------
+// Test: eig on general square matrices (real nonsymmetric, complex-conjugate
+// eigenvalue pairs, complex input). Reconstruction A*V = V*Lambda is checked
+// positionally, mirroring the numpy backend test convention.
+// -----------------------------------------------------------------------------
+void test_eig_general()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // nonsymmetric real matrix [[1,2],[3,4]]: eigenvalues {-0.37228, 5.37228}
+    auto A = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, A, {0, 0}, 1.0); set_elem<ItensorReal>(ctx, A, {0, 1}, 2.0);
+    set_elem<ItensorReal>(ctx, A, {1, 0}, 3.0); set_elem<ItensorReal>(ctx, A, {1, 1}, 4.0);
+    const tent_t<ItensorReal>& Ac = A;
+    cplx_ten_t<ItensorReal> L, V;
+    eig<ItensorReal>(ctx, Ac, 1, L, V);
+    double w[2], wn[2] = {-0.3722813232690143, 5.372281323269014};
+    for(int k = 0; k < 2; ++k) w[k] = re_of<ItensorReal>(ctx, L, k, k);
+    std::sort(w, w + 2); std::sort(wn, wn + 2);
+    for(int k = 0; k < 2; ++k) assert(approx(w[k], wn[k], 1e-9));
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            std::complex<double> s = 0;
+            for(int c = 0; c < 2; ++c)
+                s += get_elem<ItensorReal>(ctx, A, {r, c}) * get_elem<ItensorCplx>(ctx, V, {c, k});
+            std::complex<double> rhs = get_elem<ItensorCplx>(ctx, V, {r, k}) *
+                                       get_elem<ItensorCplx>(ctx, L, {k, k});
+            assert(approx_c(s, rhs, 1e-9));
+        }
+
+    // real matrix with a complex-conjugate eigenvalue pair: rotation (+-i)
+    auto R = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, R, {0, 1}, -1.0);
+    set_elem<ItensorReal>(ctx, R, {1, 0}, 1.0);
+    const tent_t<ItensorReal>& Rc = R;
+    cplx_ten_t<ItensorReal> LR, VR;
+    eig<ItensorReal>(ctx, Rc, 1, LR, VR);
+    double realw[2] = {re_of<ItensorReal>(ctx, LR, 0, 0), re_of<ItensorReal>(ctx, LR, 1, 1)};
+    double imagw[2] = {im_of<ItensorReal>(ctx, LR, 0, 0), im_of<ItensorReal>(ctx, LR, 1, 1)};
+    for(int k = 0; k < 2; ++k)
+        assert(approx(std::abs(realw[k]), 0.0, 1e-9) && approx(std::abs(imagw[k]), 1.0, 1e-9));
+
+    // complex-Hermitian input [[2,i],[-i,3]]: eigenvalues {(5+-sqrt(5))/2}
+    auto H = allocate<ItensorCplx>(ctx, {2, 2});
+    set_elem<ItensorCplx>(ctx, H, {0, 0}, std::complex<double>(2, 0));
+    set_elem<ItensorCplx>(ctx, H, {0, 1}, std::complex<double>(0, 1));
+    set_elem<ItensorCplx>(ctx, H, {1, 0}, std::complex<double>(0, -1));
+    set_elem<ItensorCplx>(ctx, H, {1, 1}, std::complex<double>(3, 0));
+    const tent_t<ItensorCplx>& Hc = H;
+    cplx_ten_t<ItensorCplx> LH, VH;
+    eig<ItensorCplx>(ctx, Hc, 1, LH, VH);
+    double wh[2] = {re_of<ItensorCplx>(ctx, LH, 0, 0), re_of<ItensorCplx>(ctx, LH, 1, 1)};
+    double whn[2] = {1.3819660112501051, 3.618033988749895};
+    std::sort(wh, wh + 2); std::sort(whn, whn + 2);
+    for(int k = 0; k < 2; ++k) assert(approx(wh[k], whn[k], 1e-9));
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            std::complex<double> s = 0;
+            for(int c = 0; c < 2; ++c)
+                s += get_elem<ItensorCplx>(ctx, H, {r, c}) * get_elem<ItensorCplx>(ctx, VH, {c, k});
+            std::complex<double> rhs = get_elem<ItensorCplx>(ctx, VH, {r, k}) *
+                                       get_elem<ItensorCplx>(ctx, LH, {k, k});
+            assert(approx_c(s, rhs, 1e-9));
+        }
+
+    destroy_context(ctx);
+    std::cout << "test_eig_general passed\n";
+}
+
+// -----------------------------------------------------------------------------
+// Test: eigh on real symmetric and complex-Hermitian matrices: ascending real
+// eigenvalues, unitary eigenvectors, A*V = V*Lambda reconstruction.
+// -----------------------------------------------------------------------------
+void test_eigh_symmetric()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // real symmetric from allocate (unprimed): [[2,1],[1,2]] -> {1,3}
+    auto A = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, A, {0, 0}, 2.0); set_elem<ItensorReal>(ctx, A, {0, 1}, 1.0);
+    set_elem<ItensorReal>(ctx, A, {1, 0}, 1.0); set_elem<ItensorReal>(ctx, A, {1, 1}, 2.0);
+    const tent_t<ItensorReal>& Ac = A;
+    real_ten_t<ItensorReal> L;
+    tent_t<ItensorReal> V;
+    eigh<ItensorReal>(ctx, Ac, 1, L, V);
+    assert(approx(re_of<ItensorReal>(ctx, L, 0, 0), 1.0, 1e-9));
+    assert(approx(re_of<ItensorReal>(ctx, L, 1, 1), 3.0, 1e-9));
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            double s = 0;
+            for(int c = 0; c < 2; ++c)
+                s += get_elem<ItensorReal>(ctx, A, {r, c}) * get_elem<ItensorReal>(ctx, V, {c, k});
+            assert(approx(s, get_elem<ItensorReal>(ctx, V, {r, k}) *
+                             get_elem<ItensorReal>(ctx, L, {k, k}), 1e-9));
+        }
+    // orthonormal columns of V
+    for(int a = 0; a < 2; ++a)
+        for(int b = 0; b < 2; ++b)
+        {
+            double d = 0;
+            for(int r = 0; r < 2; ++r)
+                d += get_elem<ItensorReal>(ctx, V, {r, a}) * get_elem<ItensorReal>(ctx, V, {r, b});
+            assert(approx(d, (a == b) ? 1.0 : 0.0, 1e-9));
+        }
+
+    // complex-Hermitian from allocate: [[2,i],[-i,3]] -> ascending real evals
+    auto H = allocate<ItensorCplx>(ctx, {2, 2});
+    set_elem<ItensorCplx>(ctx, H, {0, 0}, std::complex<double>(2, 0));
+    set_elem<ItensorCplx>(ctx, H, {0, 1}, std::complex<double>(0, 1));
+    set_elem<ItensorCplx>(ctx, H, {1, 0}, std::complex<double>(0, -1));
+    set_elem<ItensorCplx>(ctx, H, {1, 1}, std::complex<double>(3, 0));
+    const tent_t<ItensorCplx>& Hc = H;
+    real_ten_t<ItensorCplx> LH;
+    tent_t<ItensorCplx> VH;
+    eigh<ItensorCplx>(ctx, Hc, 1, LH, VH);
+    assert(approx(re_of<ItensorCplx>(ctx, LH, 0, 0), 1.3819660112501051, 1e-9));
+    assert(approx(re_of<ItensorCplx>(ctx, LH, 1, 1), 3.618033988749895, 1e-9));
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            std::complex<double> s = 0;
+            for(int c = 0; c < 2; ++c)
+                s += get_elem<ItensorCplx>(ctx, H, {r, c}) * get_elem<ItensorCplx>(ctx, VH, {c, k});
+            std::complex<double> rhs = get_elem<ItensorCplx>(ctx, VH, {r, k}) *
+                                       get_elem<ItensorCplx>(ctx, LH, {k, k});
+            assert(approx_c(s, rhs, 1e-9));
+        }
+
+    // primed matrix from eye: eigh(I) = {1,1}
+    auto Ie = eye<ItensorReal>(ctx, 2);
+    const tent_t<ItensorReal>& Iec = Ie;
+    real_ten_t<ItensorReal> LI;
+    tent_t<ItensorReal> VI;
+    eigh<ItensorReal>(ctx, Iec, 1, LI, VI);
+    assert(approx(re_of<ItensorReal>(ctx, LI, 0, 0), 1.0, 1e-9));
+    assert(approx(re_of<ItensorReal>(ctx, LI, 1, 1), 1.0, 1e-9));
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            double s = 0;
+            for(int c = 0; c < 2; ++c)
+                s += get_elem<ItensorReal>(ctx, Ie, {r, c}) * get_elem<ItensorReal>(ctx, VI, {c, k});
+            assert(approx(s, get_elem<ItensorReal>(ctx, VI, {r, k}), 1e-9));
+        }
+
+    destroy_context(ctx);
+    std::cout << "test_eigh_symmetric passed\n";
+}
+
+// -----------------------------------------------------------------------------
+// Test: eigh rejects non-Hermitian input with a clean std::invalid_argument
+// -----------------------------------------------------------------------------
+void test_eigh_rejects_nonsymmetric()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    auto A = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, A, {0, 0}, 1.0); set_elem<ItensorReal>(ctx, A, {0, 1}, 2.0);
+    set_elem<ItensorReal>(ctx, A, {1, 0}, 3.0); set_elem<ItensorReal>(ctx, A, {1, 1}, 4.0);
+    const tent_t<ItensorReal>& Ac = A;
+    real_ten_t<ItensorReal> L;
+    tent_t<ItensorReal> V;
+    bool threw = false;
+    try { eigh<ItensorReal>(ctx, Ac, 1, L, V); }
+    catch(const std::invalid_argument&) { threw = true; }
+    assert(threw);
+
+    // nonsymmetric complex input must also be rejected
+    auto B = allocate<ItensorCplx>(ctx, {2, 2});
+    set_elem<ItensorCplx>(ctx, B, {0, 0}, std::complex<double>(1, 0));
+    set_elem<ItensorCplx>(ctx, B, {0, 1}, std::complex<double>(2, 1));
+    set_elem<ItensorCplx>(ctx, B, {1, 0}, std::complex<double>(1, 0));
+    set_elem<ItensorCplx>(ctx, B, {1, 1}, std::complex<double>(4, 0));
+    const tent_t<ItensorCplx>& Bc = B;
+    real_ten_t<ItensorCplx> LB;
+    tent_t<ItensorCplx> VB;
+    threw = false;
+    try { eigh<ItensorCplx>(ctx, Bc, 1, LB, VB); }
+    catch(const std::invalid_argument&) { threw = true; }
+    assert(threw);
+
+    destroy_context(ctx);
+    std::cout << "test_eigh_rejects_nonsymmetric passed\n";
+}
+
+// -----------------------------------------------------------------------------
+// Test: repeated calls leave the source tensor untouched and give identical
+// results (no mutation, no index leakage) for eig, eigh and exp.
+// -----------------------------------------------------------------------------
+void test_no_mutation_identity_preserved()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    auto A = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, A, {0, 0}, 1.0); set_elem<ItensorReal>(ctx, A, {0, 1}, 2.0);
+    set_elem<ItensorReal>(ctx, A, {1, 0}, 3.0); set_elem<ItensorReal>(ctx, A, {1, 1}, 4.0);
+    const tent_t<ItensorReal>& Ac = A;
+
+    double snap[4];
+    for(int r = 0; r < 2; ++r) for(int c = 0; c < 2; ++c)
+        snap[2 * r + c] = get_elem<ItensorReal>(ctx, A, {r, c});
+
+    // eig twice
+    cplx_ten_t<ItensorReal> L1, V1, L2, V2;
+    eig<ItensorReal>(ctx, Ac, 1, L1, V1);
+    eig<ItensorReal>(ctx, Ac, 1, L2, V2);
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            assert(approx_c(get_elem<ItensorCplx>(ctx, L1, {r, k}), get_elem<ItensorCplx>(ctx, L2, {r, k}), 1e-12));
+            assert(approx_c(get_elem<ItensorCplx>(ctx, V1, {r, k}), get_elem<ItensorCplx>(ctx, V2, {r, k}), 1e-12));
+        }
+    for(int r = 0; r < 2; ++r) for(int c = 0; c < 2; ++c)
+        assert(approx(snap[2 * r + c], get_elem<ItensorReal>(ctx, A, {r, c}), 0.0));
+
+    // eigh twice (symmetric matrix)
+    auto S = allocate<ItensorReal>(ctx, {2, 2});
+    set_elem<ItensorReal>(ctx, S, {0, 0}, 2.0); set_elem<ItensorReal>(ctx, S, {0, 1}, 1.0);
+    set_elem<ItensorReal>(ctx, S, {1, 0}, 1.0); set_elem<ItensorReal>(ctx, S, {1, 1}, 2.0);
+    const tent_t<ItensorReal>& Sc = S;
+    double snapS[4];
+    for(int r = 0; r < 2; ++r) for(int c = 0; c < 2; ++c)
+        snapS[2 * r + c] = get_elem<ItensorReal>(ctx, S, {r, c});
+    real_ten_t<ItensorReal> S1, S2;
+    tent_t<ItensorReal> W1, W2;
+    eigh<ItensorReal>(ctx, Sc, 1, S1, W1);
+    eigh<ItensorReal>(ctx, Sc, 1, S2, W2);
+    for(int r = 0; r < 2; ++r)
+        for(int k = 0; k < 2; ++k)
+        {
+            assert(approx(get_elem<ItensorReal>(ctx, S1, {r, k}), get_elem<ItensorReal>(ctx, S2, {r, k}), 1e-12));
+            assert(approx(get_elem<ItensorReal>(ctx, W1, {r, k}), get_elem<ItensorReal>(ctx, W2, {r, k}), 1e-12));
+        }
+    for(int r = 0; r < 2; ++r) for(int c = 0; c < 2; ++c)
+        assert(approx(snapS[2 * r + c], get_elem<ItensorReal>(ctx, S, {r, c}), 0.0));
+
+    // exp twice (out-of-place)
+    tent_t<ItensorReal> E1, E2;
+    exp<ItensorReal>(ctx, Ac, 1, E1);
+    exp<ItensorReal>(ctx, Ac, 1, E2);
+    for(int r = 0; r < 2; ++r)
+        for(int c = 0; c < 2; ++c)
+        {
+            assert(approx(get_elem<ItensorReal>(ctx, E1, {r, c}), get_elem<ItensorReal>(ctx, E2, {r, c}), 1e-12));
+            assert(approx(snap[2 * r + c], get_elem<ItensorReal>(ctx, A, {r, c}), 0.0));
+        }
+
+    destroy_context(ctx);
+    std::cout << "test_no_mutation_identity_preserved passed\n";
+}
+
 int main()
 {
     test_context();
@@ -903,6 +1313,14 @@ int main()
     test_trace();
     test_linear_combine();
     test_stack();
+
+    // exp / eig / eigh general-matrix coverage (dense path)
+    test_exp_general();
+    test_exp_random_property();
+    test_eig_general();
+    test_eigh_symmetric();
+    test_eigh_rejects_nonsymmetric();
+    test_no_mutation_identity_preserved();
 
     std::cout << "\nAll tests passed!\n";
     return 0;

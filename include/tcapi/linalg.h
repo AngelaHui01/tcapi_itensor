@@ -397,17 +397,108 @@ tent_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
     return linear_combine<TenT>(ctx, ins, coefs);
 }
 
+// --- eig-family shared helper -------------------------------------------
+// Matricizes a by treating the first num_of_bds_as_row bonds as the row
+// side, combining each side into a single Index via ITensor combiners.
+
+namespace detail {
+
+template<typename TenT>
+struct Matricized
+{
+    itensor::ITensor Cr, Cc;
+    itensor::Index   cr, cc;
+    itensor::ITensor M; // a * Cr * Cc over (cr, cc) with scale absorbed
+};
+
+template<typename TenT>
+Matricized<TenT>
+matricize(const context_handle_t<TenT>& ctx,
+          const tent_t<TenT>& a,
+          order_t<TenT> num_of_bds_as_row,
+          const char* fname)
+{
+    Matricized<TenT> res;
+    detail::ensure_active<TenT>(ctx);
+    auto is = itensor::inds(a);
+    if(num_of_bds_as_row < 1 ||
+       num_of_bds_as_row >= static_cast<order_t<TenT>>(is.size()))
+        throw std::invalid_argument(std::string(fname) +
+            ": invalid num_of_bds_as_row (must satisfy 1 <= k < r).");
+    std::vector<itensor::Index> row_inds, col_inds;
+    for(int b = 0; b < static_cast<int>(is.size()); ++b)
+        (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
+    auto comb_r = itensor::combiner(row_inds, {"IndexName=", "cr"});
+    auto comb_c = itensor::combiner(col_inds, {"IndexName=", "cc"});
+    res.Cr = std::get<0>(comb_r);
+    res.cr = std::get<1>(comb_r);
+    res.Cc = std::get<0>(comb_c);
+    res.cc = std::get<1>(comb_c);
+    res.M = a * res.Cr * res.Cc;
+    return res;
+}
+
+} // namespace detail
+
 // --- exp -----------------------------------------------------------------
-// Sec. C2e — matrix exponential via Hermitian eigendecomposition.
-// For the ITensor backend this uses itensor::expHermitian internally.
+// Sec. C2e — general matrix exponential exp(in_out); the tensor is
+// matricized by treating the first num_of_bds_as_row bonds as the row side
+// and must be square. Matches tcapi_numpy, which uses scipy.linalg.expm on
+// the matricized tensor (arbitrary real/complex matrices, NOT Hermitian-only).
+// ITensor implementation: dense itensor::expMatrix (Padé approximation with
+// scaling and squaring on itensor::Mat<Real>/Mat<Cplx>), unmatricized back
+// to the input bond layout. Valid for symmetric <-> nonsymmetric input
+// regardless of whether the input indices are prime-level paired.
+
+namespace detail {
+
+template<typename TenT>
+tent_t<TenT> exp_impl(const context_handle_t<TenT>& ctx,
+                      const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+{
+    detail::ensure_active<TenT>(ctx);
+    auto mx = detail::matricize<TenT>(ctx, a, num_of_bds_as_row, "exp");
+    int n = itensor::dim(mx.cr);
+    if(n != itensor::dim(mx.cc))
+        throw std::invalid_argument("exp: matricized tensor must be square.");
+
+    if constexpr(std::is_same<elem_t<TenT>, itensor::Real>::value)
+    {
+        itensor::Matrix Mmat(n, n);
+        for(int i = 1; i <= n; ++i)
+            for(int j = 1; j <= n; ++j)
+                Mmat(i - 1, j - 1) = itensor::eltC(mx.M, mx.cr(i), mx.cc(j)).real();
+        itensor::Matrix E = itensor::expMatrix(Mmat, itensor::Real{1});
+        itensor::ITensor Et{mx.cc, mx.cr};
+        for(int r = 1; r <= n; ++r)
+            for(int c = 1; c <= n; ++c)
+                Et.set(mx.cc(r), mx.cr(c), E(r - 1, c - 1));
+        return Et * itensor::dag(mx.Cc) * itensor::dag(mx.Cr);
+    }
+    else
+    {
+        itensor::CMatrix Mmat(n, n);
+        for(int i = 1; i <= n; ++i)
+            for(int j = 1; j <= n; ++j)
+                Mmat(i - 1, j - 1) = itensor::eltC(mx.M, mx.cr(i), mx.cc(j));
+        itensor::CMatrix E = itensor::expMatrix(Mmat, itensor::Cplx{1});
+        itensor::ITensor Et{mx.cc, mx.cr};
+        for(int r = 1; r <= n; ++r)
+            for(int c = 1; c <= n; ++c)
+                Et.set(mx.cc(r), mx.cr(c), E(r - 1, c - 1));
+        return Et * itensor::dag(mx.Cc) * itensor::dag(mx.Cr);
+    }
+}
+
+} // namespace detail
 
 template<typename TenT>
 void exp(const context_handle_t<TenT>& ctx,
          tent_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
-    (void)num_of_bds_as_row;
-    inout = itensor::expHermitian(inout);
+    tent_t<TenT> out = detail::exp_impl<TenT>(ctx, inout, num_of_bds_as_row);
+    inout = std::move(out);
 }
 
 template<typename TenT>
@@ -415,8 +506,7 @@ void exp(const context_handle_t<TenT>& ctx,
          const tent_t<TenT>& in, order_t<TenT> num_of_bds_as_row, tent_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
-    out = in;
-    exp<TenT>(ctx, out, num_of_bds_as_row);
+    out = detail::exp_impl<TenT>(ctx, in, num_of_bds_as_row);
 }
 
 // --- inverse ------------------------------------------------------------
@@ -549,6 +639,16 @@ tent_t<TenT> inverse(const context_handle_t<TenT>& ctx,
                      const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
 {
     return detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
+}
+
+// Out-of-place convenience writing the inverse into `out`.
+template<typename TenT>
+void inverse(const context_handle_t<TenT>& ctx,
+             const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row,
+             tent_t<TenT>& out)
+{
+    detail::ensure_active<TenT>(ctx);
+    out = detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
 }
 
 // --- svd -----------------------------------------------------------------
@@ -799,49 +899,6 @@ void lq(const context_handle_t<TenT>& ctx,
     q = itensor::permute(qfull, itensor::IndexSet(q_order));
 }
 
-// --- eig-family shared helper -------------------------------------------
-// Matricizes a by treating the first num_of_bds_as_row bonds as the row
-// side, combining each side into a single Index via ITensor combiners.
-
-namespace detail {
-
-template<typename TenT>
-struct Matricized
-{
-    itensor::ITensor Cr, Cc;
-    itensor::Index   cr, cc;
-    itensor::ITensor M; // a * Cr * Cc over (cr, cc) with scale absorbed
-};
-
-template<typename TenT>
-Matricized<TenT>
-matricize(const context_handle_t<TenT>& ctx,
-          const tent_t<TenT>& a,
-          order_t<TenT> num_of_bds_as_row,
-          const char* fname)
-{
-    Matricized<TenT> res;
-    detail::ensure_active<TenT>(ctx);
-    auto is = itensor::inds(a);
-    if(num_of_bds_as_row < 1 ||
-       num_of_bds_as_row >= static_cast<order_t<TenT>>(is.size()))
-        throw std::invalid_argument(std::string(fname) +
-            ": invalid num_of_bds_as_row (must satisfy 1 <= k < r).");
-    std::vector<itensor::Index> row_inds, col_inds;
-    for(int b = 0; b < static_cast<int>(is.size()); ++b)
-        (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
-    auto comb_r = itensor::combiner(row_inds, {"IndexName=", "cr"});
-    auto comb_c = itensor::combiner(col_inds, {"IndexName=", "cc"});
-    res.Cr = std::get<0>(comb_r);
-    res.cr = std::get<1>(comb_r);
-    res.Cc = std::get<0>(comb_c);
-    res.cc = std::get<1>(comb_c);
-    res.M = a * res.Cr * res.Cc;
-    return res;
-}
-
-} // namespace detail
-
 // --- eigall ------------------------------------------------------------
 // Sec. C2e — general (non-Hermitian) eigendecomposition A'*V = V*Lambda.
 // lambda_mat is a complex diagonal tensor {I,I}; v is complex with shape
@@ -932,6 +989,23 @@ void eigh(const context_handle_t<TenT>& ctx,
     int n = itensor::dim(mx.cr);
     if(n != itensor::dim(mx.cc))
         throw std::invalid_argument("eigh: matricized tensor must be square.");
+
+    // Explicit Hermiticity/symmetry validation: itensor::diagHermitian only
+    // reads the upper triangle silently, so reject non-Hermitian inputs with
+    // a clean std::invalid_argument rather than producing garbage or aborting.
+    {
+        itensor::Real asym = 0, scale = 0;
+        for(int i = 1; i <= n; ++i)
+            for(int j = 1; j <= n; ++j)
+            {
+                auto mij = itensor::eltC(mx.M, mx.cr(i), mx.cc(j));
+                auto mji = itensor::eltC(mx.M, mx.cr(j), mx.cc(i));
+                asym = std::max(asym, std::abs(mij - std::conj(mji)));
+                scale = std::max(scale, std::abs(mij));
+            }
+        if(asym > itensor::Real(1e-8) * (1 + scale))
+            throw std::invalid_argument("eigh: input matrix is not Hermitian/symmetric.");
+    }
 
     itensor::Vector d(n);
     int ord = n;
