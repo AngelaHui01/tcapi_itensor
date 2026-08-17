@@ -1,8 +1,3 @@
-// tcapi/linalg.h
-// Mirrors tcapi_numpy/linalg.py.
-// Sec. C2e — linear algebra: norm, diag, normalize, scale, trace, exp,
-// inverse, contract, linear_combine, svd, trunc_svd, qr, lq, eigvals,
-// eigvalsh, eig, eigh.
 #pragma once
 
 #include "itensor/all.h"
@@ -21,44 +16,29 @@
 
 namespace tcapi {
 
-// --- norm ---------------------------------------------------------------
-// Sec. C2e — Frobenius norm.
 template<typename TenT>
-real_t<TenT> norm(const context_handle_t<TenT>& ctx, const tent_t<TenT>& a)
+real_t<TenT> norm(const context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 {
     detail::ensure_active<TenT>(ctx);
     return itensor::norm(a);
 }
 
-// --- contract (shared-index convenience) --------------------------------
-// Sec. C2e — sum over all indices shared by a and b (ITensor implicit
-// contraction). Convenience overload; the label-based forms below are the
-// primary spec API.
 template<typename TenT>
-tent_t<TenT> contract(const context_handle_t<TenT>& ctx,
-                      const tent_t<TenT>& a,
-                      const tent_t<TenT>& b)
+ten_t<TenT> contract(const context_handle_t<TenT>& ctx,
+                      const ten_t<TenT>& a,
+                      const ten_t<TenT>& b)
 {
     detail::ensure_active<TenT>(ctx);
     return a * b;
 }
 
-// --- contract with explicit bond labels --------------------------------
-// Sec. C2e — einsum-style: labels shared between bdlabs_a/bdlabs_b are
-// summed; labels present in bdlabs_c are kept as free bonds of the output
-// in that exact bond order. The result is written into the output tensor c;
-// the C++ API guarantees c may alias a, b, or both (the computation is done
-// into a fresh tensor and then assigned to c). Implemented via direct
-// coordinate-summation so it works regardless of how a and b's Index objects
-// were built.
-
 namespace detail {
 
 template<typename TenT, typename Lab>
-tent_t<TenT> contract_labeled(const context_handle_t<TenT>& ctx,
-                              const tent_t<TenT>& a,
+ten_t<TenT> contract_labeled(const context_handle_t<TenT>& ctx,
+                              const ten_t<TenT>& a,
                               const List<Lab>& bdlabs_a,
-                              const tent_t<TenT>& b,
+                              const ten_t<TenT>& b,
                               const List<Lab>& bdlabs_b,
                               const List<Lab>& bdlabs_c)
 {
@@ -81,8 +61,6 @@ tent_t<TenT> contract_labeled(const context_handle_t<TenT>& ctx,
         throw std::invalid_argument("contract: output label not present in either input.");
     };
 
-    // Validate: shared labels must have matching dimensions and must not
-    // also be advertised as free (output) labels.
     for(auto const& lab : bdlabs_a)
     {
         auto ib = lab_pos(bdlabs_b, lab);
@@ -94,9 +72,6 @@ tent_t<TenT> contract_labeled(const context_handle_t<TenT>& ctx,
             throw std::invalid_argument("contract: shared bond label also in output labels.");
     }
 
-    // Labels to sum over: every label appearing in either input that is not a
-    // free (output) label. This includes the labels shared by a and b as well
-    // as any label present in exactly one input (summed per einsum semantics).
     List<Lab> sum_labs;
     auto append_unique = [&](const Lab& lab)
     {
@@ -155,24 +130,22 @@ tent_t<TenT> contract_labeled(const context_handle_t<TenT>& ctx,
 
 } // namespace detail
 
-// Integer bond labels.
 template<typename TenT>
 void contract(const context_handle_t<TenT>& ctx,
-              const tent_t<TenT>& a, const List<bond_label_t<TenT>>& bdlabs_a,
-              const tent_t<TenT>& b, const List<bond_label_t<TenT>>& bdlabs_b,
-              tent_t<TenT>& c, const List<bond_label_t<TenT>>& bdlabs_c)
+              const ten_t<TenT>& a, const List<bond_label_t<TenT>>& bdlabs_a,
+              const ten_t<TenT>& b, const List<bond_label_t<TenT>>& bdlabs_b,
+              ten_t<TenT>& c, const List<bond_label_t<TenT>>& bdlabs_c)
 {
     detail::ensure_active<TenT>(ctx);
     c = detail::contract_labeled<TenT, bond_label_t<TenT>>(
         ctx, a, bdlabs_a, b, bdlabs_b, bdlabs_c);
 }
 
-// String labels ("ijk"-style, one char per bond).
 template<typename TenT>
 void contract(const context_handle_t<TenT>& ctx,
-              const tent_t<TenT>& a, const std::string_view bdlabs_a,
-              const tent_t<TenT>& b, const std::string_view bdlabs_b,
-              tent_t<TenT>& c, const std::string_view bdlabs_c)
+              const ten_t<TenT>& a, const std::string_view bdlabs_a,
+              const ten_t<TenT>& b, const std::string_view bdlabs_b,
+              ten_t<TenT>& c, const std::string_view bdlabs_c)
 {
     detail::ensure_active<TenT>(ctx);
     auto to_labs = [](const std::string_view s)
@@ -185,12 +158,8 @@ void contract(const context_handle_t<TenT>& ctx,
         ctx, a, to_labs(bdlabs_a), b, to_labs(bdlabs_b), to_labs(bdlabs_c));
 }
 
-// --- diag ---------------------------------------------------------------
-// Sec. C2e — (1) 1st-order input -> 2nd-order diagonal tensor.
-//            (2) 2nd-order input -> 1st-order diagonal vector.
-
 template<typename TenT>
-void diag(const context_handle_t<TenT>& ctx, const tent_t<TenT>& in, tent_t<TenT>& out)
+void diag(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in, ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto ord = order<TenT>(ctx, in);
@@ -226,20 +195,16 @@ void diag(const context_handle_t<TenT>& ctx, const tent_t<TenT>& in, tent_t<TenT
     }
 }
 
-// In-place overload (numpy-style): diag(inout) replaces inout in place.
 template<typename TenT>
-void diag(const context_handle_t<TenT>& ctx, tent_t<TenT>& inout)
+void diag(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
 {
-    tent_t<TenT> out;
+    ten_t<TenT> out;
     diag<TenT>(ctx, inout, out);
     inout = std::move(out);
 }
 
-// --- scale --------------------------------------------------------------
-// Sec. C2e — in-place and out-of-place scalar multiplication.
-
 template<typename TenT>
-void scale(const context_handle_t<TenT>& ctx, tent_t<TenT>& inout, elem_t<TenT> s)
+void scale(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout, elem_t<TenT> s)
 {
     detail::ensure_active<TenT>(ctx);
     inout *= s;
@@ -247,18 +212,14 @@ void scale(const context_handle_t<TenT>& ctx, tent_t<TenT>& inout, elem_t<TenT> 
 
 template<typename TenT>
 void scale(const context_handle_t<TenT>& ctx,
-           const tent_t<TenT>& in, elem_t<TenT> s, tent_t<TenT>& out)
+           const ten_t<TenT>& in, elem_t<TenT> s, ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = in * s;
 }
 
-// --- normalize ----------------------------------------------------------
-// Sec. C2e — rescales inout in-place to unit Frobenius norm; returns the
-// original norm. Out-of-place form writes into out.
-
 template<typename TenT>
-real_t<TenT> normalize(const context_handle_t<TenT>& ctx, tent_t<TenT>& inout)
+real_t<TenT> normalize(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
 {
     detail::ensure_active<TenT>(ctx);
     real_t<TenT> n = itensor::norm(inout);
@@ -270,23 +231,20 @@ real_t<TenT> normalize(const context_handle_t<TenT>& ctx, tent_t<TenT>& inout)
 
 template<typename TenT>
 real_t<TenT> normalize(const context_handle_t<TenT>& ctx,
-                       const tent_t<TenT>& in, tent_t<TenT>& out)
+                       const ten_t<TenT>& in, ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = in;
     return normalize<TenT>(ctx, out);
 }
 
-// --- trace --------------------------------------------------------------
-// Sec. C2e — partial trace summing over the bond pairs in bdidx_pairs.
-
 namespace detail {
 
 template<typename TenT>
 void trace_impl(const context_handle_t<TenT>& ctx,
-                const tent_t<TenT>& in,
+                const ten_t<TenT>& in,
                 const bond_idx_pairs_t<TenT>& bdidx_pairs,
-                tent_t<TenT>& out)
+                ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto old_shape = shape<TenT>(ctx, in);
@@ -341,30 +299,26 @@ void trace_impl(const context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void trace(const context_handle_t<TenT>& ctx,
-           tent_t<TenT>& inout,
+           ten_t<TenT>& inout,
            const detail::bond_idx_pairs_t<TenT>& bdidx_pairs)
 {
-    tent_t<TenT> out;
+    ten_t<TenT> out;
     detail::trace_impl<TenT>(ctx, inout, bdidx_pairs, out);
     inout = std::move(out);
 }
 
 template<typename TenT>
 void trace(const context_handle_t<TenT>& ctx,
-           const tent_t<TenT>& in,
+           const ten_t<TenT>& in,
            const detail::bond_idx_pairs_t<TenT>& bdidx_pairs,
-           tent_t<TenT>& out)
+           ten_t<TenT>& out)
 {
     detail::trace_impl<TenT>(ctx, in, bdidx_pairs, out);
 }
 
-// --- linear_combine -----------------------------------------------------
-// Sec. C2e — forms sum_i coefs[i] * ins[i]. Inputs are borrowed
-// (List<CRef<TenT>>); no copies are taken.
-
 template<typename TenT>
-tent_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
-                            const List<CRef<tent_t<TenT>>>& ins,
+ten_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
+                            const List<CRef<ten_t<TenT>>>& ins,
                             const List<elem_t<TenT>>& coefs)
 {
     detail::ensure_active<TenT>(ctx);
@@ -390,16 +344,12 @@ tent_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-tent_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
-                            const List<CRef<tent_t<TenT>>>& ins)
+ten_t<TenT> linear_combine(const context_handle_t<TenT>& ctx,
+                            const List<CRef<ten_t<TenT>>>& ins)
 {
     List<elem_t<TenT>> coefs(ins.size(), elem_t<TenT>{1});
     return linear_combine<TenT>(ctx, ins, coefs);
 }
-
-// --- eig-family shared helper -------------------------------------------
-// Matricizes a by treating the first num_of_bds_as_row bonds as the row
-// side, combining each side into a single Index via ITensor combiners.
 
 namespace detail {
 
@@ -414,7 +364,7 @@ struct Matricized
 template<typename TenT>
 Matricized<TenT>
 matricize(const context_handle_t<TenT>& ctx,
-          const tent_t<TenT>& a,
+          const ten_t<TenT>& a,
           order_t<TenT> num_of_bds_as_row,
           const char* fname)
 {
@@ -440,21 +390,11 @@ matricize(const context_handle_t<TenT>& ctx,
 
 } // namespace detail
 
-// --- exp -----------------------------------------------------------------
-// Sec. C2e — general matrix exponential exp(in_out); the tensor is
-// matricized by treating the first num_of_bds_as_row bonds as the row side
-// and must be square. Matches tcapi_numpy, which uses scipy.linalg.expm on
-// the matricized tensor (arbitrary real/complex matrices, NOT Hermitian-only).
-// ITensor implementation: dense itensor::expMatrix (Padé approximation with
-// scaling and squaring on itensor::Mat<Real>/Mat<Cplx>), unmatricized back
-// to the input bond layout. Valid for symmetric <-> nonsymmetric input
-// regardless of whether the input indices are prime-level paired.
-
 namespace detail {
 
 template<typename TenT>
-tent_t<TenT> exp_impl(const context_handle_t<TenT>& ctx,
-                      const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+ten_t<TenT> exp_impl(const context_handle_t<TenT>& ctx,
+                      const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
     auto mx = detail::matricize<TenT>(ctx, a, num_of_bds_as_row, "exp");
@@ -494,29 +434,23 @@ tent_t<TenT> exp_impl(const context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void exp(const context_handle_t<TenT>& ctx,
-         tent_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
+         ten_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
-    tent_t<TenT> out = detail::exp_impl<TenT>(ctx, inout, num_of_bds_as_row);
+    ten_t<TenT> out = detail::exp_impl<TenT>(ctx, inout, num_of_bds_as_row);
     inout = std::move(out);
 }
 
 template<typename TenT>
 void exp(const context_handle_t<TenT>& ctx,
-         const tent_t<TenT>& in, order_t<TenT> num_of_bds_as_row, tent_t<TenT>& out)
+         const ten_t<TenT>& in, order_t<TenT> num_of_bds_as_row, ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = detail::exp_impl<TenT>(ctx, in, num_of_bds_as_row);
 }
 
-// --- inverse ------------------------------------------------------------
-// Sec. C2e — matrix inverse via matricization + Gauss-Jordan elimination.
-// Requires the tensor to matricize to a square matrix.
-
 namespace detail {
 
-/// Gauss-Jordan elimination computing the inverse of the n x n matrix M,
-/// with partial pivoting. Works in real or complex arithmetic.
 template<typename ElemT>
 itensor::Mat<ElemT> gauss_jordan_inverse(const itensor::Mat<ElemT>& M, int n)
 {
@@ -565,8 +499,8 @@ itensor::Mat<ElemT> gauss_jordan_inverse(const itensor::Mat<ElemT>& M, int n)
 }
 
 template<typename TenT>
-tent_t<TenT> inverse_impl(const context_handle_t<TenT>& ctx,
-                          const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+ten_t<TenT> inverse_impl(const context_handle_t<TenT>& ctx,
+                          const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -574,12 +508,10 @@ tent_t<TenT> inverse_impl(const context_handle_t<TenT>& ctx,
        num_of_bds_as_row >= static_cast<order_t<TenT>>(is.size()))
         throw std::invalid_argument("inverse: invalid num_of_bds_as_row (must satisfy 1 <= k < r).");
 
-    // --- Split indices into "row" and "column" groups based on num_of_bds_as_row.
     std::vector<itensor::Index> row_inds, col_inds;
     for(int b = 0; b < static_cast<int>(is.size()); ++b)
         (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
 
-    // --- Combine each group into a single Index via ITensor combiners.
     auto comb_r = itensor::combiner(row_inds, {"IndexName=", "cr"});
     auto comb_c = itensor::combiner(col_inds, {"IndexName=", "cc"});
     itensor::ITensor Cr = std::get<0>(comb_r);
@@ -587,7 +519,6 @@ tent_t<TenT> inverse_impl(const context_handle_t<TenT>& ctx,
     itensor::ITensor Cc = std::get<0>(comb_c);
     itensor::Index   ic = std::get<1>(comb_c);
 
-    // --- Matricize: M now has exactly indices (ir, ic).
     auto M = a * Cr * Cc;
 
     int n = itensor::dim(ir);
@@ -624,50 +555,37 @@ tent_t<TenT> inverse_impl(const context_handle_t<TenT>& ctx,
 
 } // namespace detail
 
-// In-place (numpy-style): inverse(inout, num_of_bds_as_row).
 template<typename TenT>
 void inverse(const context_handle_t<TenT>& ctx,
-             tent_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
+             ten_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
 {
-    tent_t<TenT> out = detail::inverse_impl<TenT>(ctx, inout, num_of_bds_as_row);
+    ten_t<TenT> out = detail::inverse_impl<TenT>(ctx, inout, num_of_bds_as_row);
     inout = std::move(out);
 }
 
-// Out-of-place convenience returning the inverse.
 template<typename TenT>
-tent_t<TenT> inverse(const context_handle_t<TenT>& ctx,
-                     const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+ten_t<TenT> inverse(const context_handle_t<TenT>& ctx,
+                     const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
 {
     return detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
 }
 
-// Out-of-place convenience writing the inverse into `out`.
 template<typename TenT>
 void inverse(const context_handle_t<TenT>& ctx,
-             const tent_t<TenT>& a, order_t<TenT> num_of_bds_as_row,
-             tent_t<TenT>& out)
+             const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row,
+             ten_t<TenT>& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
 }
 
-// --- svd -----------------------------------------------------------------
-// Sec. C2e — singular value decomposition. a is matricized by treating the
-// first num_of_bds_as_row bonds as the row side. Outputs (u, sigma, v_dag)
-// via output parameters:
-//   u {d_0..d_{k-1}, kappa}, sigma {kappa,kappa} (real diagonal,
-//   non-increasing), v_dag {kappa, d_k..d_{r-1}}.
-// ITensor's svd returns V over (col..., link); V's stored element at
-// (col,link) is already the (unconjugated) right-singular factor so that
-// A = U*S*V holds, i.e. v_dag = permute(V, {link, col...}).
-
 template<typename TenT>
 void svd(const context_handle_t<TenT>& ctx,
-         const tent_t<TenT>& a,
+         const ten_t<TenT>& a,
          order_t<TenT> num_of_bds_as_row,
-         tent_t<TenT>& u,
+         ten_t<TenT>& u,
          real_ten_t<TenT>& sigma,
-         tent_t<TenT>& v_dag)
+         ten_t<TenT>& v_dag)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -682,7 +600,6 @@ void svd(const context_handle_t<TenT>& ctx,
     itensor::ITensor S, V;
     itensor::svd(a, U, S, V);
 
-    // v_dag must be (kappa, d_k..d_{n-1}).
     std::vector<itensor::Index> v_order;
     v_order.push_back(itensor::commonIndex(S, V));
     v_order.insert(v_order.end(), col_inds.begin(), col_inds.end());
@@ -693,22 +610,13 @@ void svd(const context_handle_t<TenT>& ctx,
     v_dag = vdag;
 }
 
-// --- trunc_svd -----------------------------------------------------------
-// Sec. C2e — truncated SVD.
-// (1) simple form: (ctx, a, k, u, sigma, v_dag, trunc_err, chi_max, s_min)
-// (2) full form:   (..., trunc_err, chi_min, chi_max, target_trunc_err, s_min)
-// Truncation error = sum_{i=chi}^{kappa-1} s_i^2 / sum_i s_i^2.
-// Strategy: drop s_i < s_min; keep at least chi_min survivors (never restore
-// dropped values); increase chi until err <= target_trunc_err or
-// chi == chi_max.
-
 template<typename TenT>
 void trunc_svd(const context_handle_t<TenT>& ctx,
-               const tent_t<TenT>& a,
+               const ten_t<TenT>& a,
                order_t<TenT> num_of_bds_as_row,
-               tent_t<TenT>& u,
+               ten_t<TenT>& u,
                real_ten_t<TenT>& sigma,
-               tent_t<TenT>& v_dag,
+               ten_t<TenT>& v_dag,
                real_t<TenT>& trunc_err,
                bond_dim_t<TenT> chi_min,
                bond_dim_t<TenT> chi_max,
@@ -723,7 +631,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
     if(chi_min < 0 || chi_max < chi_min)
         throw std::invalid_argument("trunc_svd: invalid chi_min/chi_max range.");
 
-    // Full (untruncated) SVD to get the full spectrum first.
     std::vector<itensor::Index> row_inds, col_inds;
     for(int b = 0; b < static_cast<int>(is.size()); ++b)
         (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
@@ -732,10 +639,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
     itensor::ITensor S, V;
     itensor::svd(a, U, S, V);
 
-    // Read the full (descending) singular values from the diagonal of S.
-    // S's two bond indices are the (distinct) U-link and V-link objects,
-    // so the diagonal is read with the two commonIndex links, not with the
-    // primed U-link.
     itensor::Index link  = itensor::commonIndex(U, S);
     itensor::Index vlink = itensor::commonIndex(S, V);
     int kappa = itensor::dim(link);
@@ -746,7 +649,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
     real_t<TenT> total2{0};
     for(auto s : svals) total2 += s * s;
 
-    // Determine chi: drop s_i < s_min, keep at least chi_min survivors.
     int chi = 0;
     for(int i = 0; i < kappa; ++i)
     {
@@ -757,7 +659,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
     if(chi > kappa) chi = kappa;
     if(chi > chi_max) chi = static_cast<int>(chi_max);
 
-    // Increase chi until relative error <= target_trunc_err or chi == chi_max.
     if(target_trunc_err >= real_t<TenT>{0})
     {
         while(chi < kappa && chi < static_cast<int>(chi_max))
@@ -770,10 +671,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
         }
     }
 
-    // Truncate to rank chi via ITensor's built-in cut (keeps the largest chi
-    // singular values; Cutoff=0 ensures only the bond-dim cap applies). A
-    // fresh truncated SVD is used because this ITensor version has no
-    // Index-slicing helpers (itensor::slice/replaceIndex).
     itensor::ITensor U_trunc{itensor::IndexSet(row_inds)};
     itensor::ITensor S_trunc, V_trunc;
     itensor::svd(a, U_trunc, S_trunc, V_trunc,
@@ -784,7 +681,6 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
     v_order.insert(v_order.end(), col_inds.begin(), col_inds.end());
     itensor::ITensor vdag = itensor::permute(V_trunc, itensor::IndexSet(v_order));
 
-    // Truncation error = sum of discarded s_i^2 / total.
     real_t<TenT> kept2{0};
     for(int i = 0; i < chi; ++i) kept2 += svals[i] * svals[i];
     trunc_err = (total2 > 0) ? (total2 - kept2) / total2 : real_t<TenT>{0};
@@ -796,11 +692,11 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void trunc_svd(const context_handle_t<TenT>& ctx,
-               const tent_t<TenT>& a,
+               const ten_t<TenT>& a,
                order_t<TenT> num_of_bds_as_row,
-               tent_t<TenT>& u,
+               ten_t<TenT>& u,
                real_ten_t<TenT>& sigma,
-               tent_t<TenT>& v_dag,
+               ten_t<TenT>& v_dag,
                real_t<TenT>& trunc_err,
                bond_dim_t<TenT> chi_max,
                real_t<TenT> s_min)
@@ -809,16 +705,12 @@ void trunc_svd(const context_handle_t<TenT>& ctx,
                     0, chi_max, real_t<TenT>{-1}, s_min);
 }
 
-// --- qr ------------------------------------------------------------------
-// Sec. C2e — thin QR. a (row..., col...) -> q {d_0..d_{k-1}, rho},
-// r {rho, d_k..}, rho = min(I, J).
-
 template<typename TenT>
 void qr(const context_handle_t<TenT>& ctx,
-        const tent_t<TenT>& a,
+        const ten_t<TenT>& a,
         order_t<TenT> num_of_bds_as_row,
-        tent_t<TenT>& q,
-        tent_t<TenT>& r)
+        ten_t<TenT>& q,
+        ten_t<TenT>& r)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -834,19 +726,12 @@ void qr(const context_handle_t<TenT>& ctx,
     r = R;
 }
 
-// --- lq ------------------------------------------------------------------
-// Sec. C2e — thin LQ decomposition: a = l * q with
-// l {d_0..d_{k-1}, rho} lower-triangular, q {rho, d_k..} with orthonormal
-// rows. Implemented via QR of the (conjugate-)transposed tensor:
-// a^T = q' * r'  =>  a = (r')^T * (q')^T, so l = dag(r') over (row..., rho)
-// and q = dag(q') over (rho, col...).
-
 template<typename TenT>
 void lq(const context_handle_t<TenT>& ctx,
-        const tent_t<TenT>& a,
+        const ten_t<TenT>& a,
         order_t<TenT> num_of_bds_as_row,
-        tent_t<TenT>& l,
-        tent_t<TenT>& q)
+        ten_t<TenT>& l,
+        ten_t<TenT>& q)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -857,9 +742,6 @@ void lq(const context_handle_t<TenT>& ctx,
     for(int b = 0; b < static_cast<int>(is.size()); ++b)
         (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
 
-    // Transpose a so that the column side of the original becomes the "row"
-    // side of the QR: a_T over (col..., row...) with a_T[col...,row...] =
-    // a[row...,col...].
     itensor::IndexSet is_T;
     {
         std::vector<itensor::Index> inds_T;
@@ -882,11 +764,9 @@ void lq(const context_handle_t<TenT>& ctx,
         });
     }
 
-    // QR of the transpose: q' over (col..., rho), r' over (rho, row...).
     itensor::IndexSet Qis_T(col_inds);
     auto [qp, rp] = itensor::qr(aT, Qis_T);
 
-    // l = dag(r') over (row..., rho); q = dag(q') over (rho, col...).
     auto lfull = itensor::dag(rp);
     std::vector<itensor::Index> l_order = row_inds;
     l_order.push_back(itensor::commonIndex(qp, rp));
@@ -899,16 +779,9 @@ void lq(const context_handle_t<TenT>& ctx,
     q = itensor::permute(qfull, itensor::IndexSet(q_order));
 }
 
-// --- eigall ------------------------------------------------------------
-// Sec. C2e — general (non-Hermitian) eigendecomposition A'*V = V*Lambda.
-// lambda_mat is a complex diagonal tensor {I,I}; v is complex with shape
-// {d_0..d_{k-1}, I} (right eigenvectors expanded in the row basis).
-// Uses the dense-matrix itensor::eigen routine (dgeev/zgeev); eigenvalues
-// are complex in general, order is unspecified (mirrors numpy's eig).
-
 template<typename TenT>
 void eig(const context_handle_t<TenT>& ctx,
-         const tent_t<TenT>& a,
+         const ten_t<TenT>& a,
          order_t<TenT> num_of_bds_as_row,
          cplx_ten_t<TenT>& lambda_mat,
          cplx_ten_t<TenT>& v)
@@ -944,8 +817,6 @@ void eig(const context_handle_t<TenT>& ctx,
               itensor::Cplx(dr(k - 1), di(k - 1)));
     lambda_mat = L;
 
-    // Right eigenvectors as columns, expanded in the combined row basis,
-    // then uncombined back to the original row bonds.
     itensor::ITensor Vt{mx.cr, eig};
     for(int r = 1; r <= n; ++r)
         for(int k = 1; k <= n; ++k)
@@ -954,12 +825,9 @@ void eig(const context_handle_t<TenT>& ctx,
     v = Vt * itensor::dag(mx.Cr);
 }
 
-// --- eigvals -----------------------------------------------------------
-// Sec. C2e — eigenvalues only (complex 1st-order output w).
-
 template<typename TenT>
 void eigvals(const context_handle_t<TenT>& ctx,
-             const tent_t<TenT>& a,
+             const ten_t<TenT>& a,
              order_t<TenT> num_of_bds_as_row,
              cplx_ten_t<TenT>& w)
 {
@@ -973,26 +841,18 @@ void eigvals(const context_handle_t<TenT>& ctx,
         w.set(eigidx(k), itensor::eltC(lambda_mat, is[0](k), is[1](k)));
 }
 
-// --- eigh --------------------------------------------------------------
-// Sec. C2e — Hermitian eigendecomposition. lambda_mat is a REAL diagonal
-// tensor {I,I} with eigenvalues ASCENDING; v has the same element type as
-// the input and shape {d_0..d_{k-1}, I}.
-
 template<typename TenT>
 void eigh(const context_handle_t<TenT>& ctx,
-          const tent_t<TenT>& a,
+          const ten_t<TenT>& a,
           order_t<TenT> num_of_bds_as_row,
           real_ten_t<TenT>& lambda_mat,
-          tent_t<TenT>& v)
+          ten_t<TenT>& v)
 {
     auto mx = detail::matricize<TenT>(ctx, a, num_of_bds_as_row, "eigh");
     int n = itensor::dim(mx.cr);
     if(n != itensor::dim(mx.cc))
         throw std::invalid_argument("eigh: matricized tensor must be square.");
 
-    // Explicit Hermiticity/symmetry validation: itensor::diagHermitian only
-    // reads the upper triangle silently, so reject non-Hermitian inputs with
-    // a clean std::invalid_argument rather than producing garbage or aborting.
     {
         itensor::Real asym = 0, scale = 0;
         for(int i = 1; i <= n; ++i)
@@ -1011,8 +871,6 @@ void eigh(const context_handle_t<TenT>& ctx,
     int ord = n;
     (void)ord;
 
-    // U holds eigenvectors as columns (descending eigenvalues from
-    // itensor::diagHermitian); we rebuild in ascending order afterwards.
     if constexpr(std::is_same<elem_t<TenT>, itensor::Real>::value)
     {
         itensor::Matrix Mmat(n, n), U(n, n);
@@ -1065,17 +923,14 @@ void eigh(const context_handle_t<TenT>& ctx,
     }
 }
 
-// --- eigvalsh ----------------------------------------------------------
-// Sec. C2e — Hermitian eigenvalues only (real 1st-order output w, ascending).
-
 template<typename TenT>
 void eigvalsh(const context_handle_t<TenT>& ctx,
-              const tent_t<TenT>& a,
+              const ten_t<TenT>& a,
               order_t<TenT> num_of_bds_as_row,
               real_ten_t<TenT>& w)
 {
     real_ten_t<TenT> lambda_mat;
-    tent_t<TenT> v;
+    ten_t<TenT> v;
     eigh<TenT>(ctx, a, num_of_bds_as_row, lambda_mat, v);
     auto is = itensor::inds(lambda_mat);
     bond_dim_t<TenT> n = itensor::dim(is[0]);

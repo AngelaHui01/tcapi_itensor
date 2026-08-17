@@ -1,7 +1,3 @@
-// tcapi/detail.h
-// Internal helpers shared across the TCAPI modules: context validation,
-// index construction, coordinate iteration, and IndexVal dispatch.
-// These are NOT part of the public TCAPI surface.
 #pragma once
 
 #include "itensor/all.h"
@@ -15,7 +11,6 @@
 namespace tcapi {
 namespace detail {
 
-/// Validates that the context is active before any public operation.
 template<typename TenT>
 inline void ensure_active(const context_handle_t<TenT>& ctx)
 {
@@ -43,7 +38,6 @@ itensor::IndexSet make_indices(const shape_t<TenT>& shape,
     return make_indices_from_dims(dims, base_tag);
 }
 
-/// Recursively visit every zero-based coordinate tuple for a given shape.
 template<typename TenT, typename Func>
 void for_each_coordinate(const shape_t<TenT>& shape, Func&& f)
 {
@@ -71,16 +65,9 @@ std::vector<itensor::IndexVal> to_ivs(const itensor::IndexSet& is,
     return ivs;
 }
 
-// -----------------------------------------------------------------------------
-// Element get/set via ITensor's vector-of-IndexVal accessors
-// (eltC/set overloads taking a std::vector<IndexVal>). Unlike the variadic
-// elt/eltC/set forms, these accept any tensor order (including rank 0), so no
-// runtime arity dispatch table is needed.
-// -----------------------------------------------------------------------------
-
 template<typename TenT>
 inline elem_t<TenT>
-get_elem_impl(const tent_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs)
+get_elem_impl(const ten_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs)
 {
     if constexpr (std::is_same_v<elem_t<TenT>, std::complex<double>>)
         return a.eltC(ivs);
@@ -90,7 +77,7 @@ get_elem_impl(const tent_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs)
 
 template<typename TenT>
 inline void
-set_elem_impl(tent_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs,
+set_elem_impl(ten_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs,
               itensor::Cplx val)
 {
     a.set(ivs, val);

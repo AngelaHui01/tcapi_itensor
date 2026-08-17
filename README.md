@@ -6,10 +6,10 @@ The project is named `tcapi_itensor`; the C++ namespace is `tcapi`.
 
 ## Requirements
 
-- **C++14** or later
-- **ITensor** (latest C++14-compatible release)
-- **CMake 3.14+** for building
-- A C++ compiler with sufficient C++14 support (e.g., GCC 7+, Clang 5+, or recent MSVC)
+- **C++17** or later
+- **ITensor** (ITensor v3, built with `-std=c++17`)
+- **Make** (driven by ITensor's `this_dir.mk` / `options.mk`)
+- A C++17-capable compiler (e.g., GCC 9+, Clang 10+, or recent MSVC)
 
 ## Quick Start
 
@@ -22,23 +22,15 @@ cd tcapi_itensor
 
 ### 2. Install Dependencies
 
-Ensure ITensor is installed and discoverable by CMake (e.g., via `CMAKE_PREFIX_PATH` or a system-wide install).
+ITensor v3 is vendored in-tree under `itensor/` (pre-built library in `itensor/lib`), so no external install is required.
 
 ### 3. Build the Project
 
 ```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+make
 ```
 
 ### 4. Run Tests
-
-```bash
-ctest --output-on-failure
-```
-
-or:
 
 ```bash
 ./test_tcapi
@@ -77,9 +69,9 @@ This backend implements dense-tensor versions of the main TCAPI categories:
 
 | Category | Functions |
 |---|---|
-| Context and metadata | `create_context`, `destroy_context`, `version`, `ten_kind` |
+| Context and metadata | `create_context`, `destroy_context`, `version` |
 | Queries | `order`, `shape`, `size`, `size_bytes`, `get_elem` |
-| Construction | `allocate`, `zeros`, `assign_from_range`, `fill`, `random`, `eye`, `copy` |
+| Construction | `allocate`, `zeros`, `assign_from_range`, `fill`, `random`, `eye`, `copy`, `move`, `clear` |
 | I/O | `save`, `load` using ITensor's HDF5 or binary serialization |
 | Manipulation | `set_elem`, `transpose`, `reshape`, `cplx_conj`, `to_cplx`, `real`, `imag`, `expand`, `shrink`, `extract_sub`, `replace_sub`, `concatenate`, `stack`, `for_each`, `for_each_with_coors` |
 | Linear algebra | `norm`, `diag`, `normalize`, `scale`, `trace`, `contract`, `linear_combine`, `exp`, `inverse`, `svd`, `trunc_svd`, `qr`, `lq`, `eigvals`, `eigvalsh`, `eig`, `eigh` |
@@ -112,13 +104,13 @@ int main() {
 
     // contract with explicit index labels (string or non-string);
     // the result is written into the output tensor c (c may alias a/b)
-    tcapi::tent_t<TenT> product;
+    tcapi::ten_t<TenT> product;
     tcapi::contract<TenT>(ctx, identity, "ij", matrix, "jk", product, "ik");
     // product should be numerically close to matrix
 
     // svd writes its factors via output parameters; sigma is a real diagonal
     // tensor of singular values
-    tcapi::tent_t<TenT> u, vdag;
+    tcapi::ten_t<TenT> u, vdag;
     tcapi::real_ten_t<TenT> sigma;
     tcapi::svd<TenT>(ctx, matrix, 1, u, sigma, vdag);
 
@@ -131,22 +123,7 @@ For tensor decompositions, `num_of_bds_as_row` controls how many leading tensor 
 
 ## Examples
 
-The `example/` directory contains tensor-network demonstrations built on the TCAPI ITensor backend:
-
-- `example/trg.cc`: Levin-Nave TRG for the infinite square-lattice Ising model
-- `example/itebd_tfim.cc`: imaginary-time iTEBD for the 1D transverse-field Ising model
-
-Build and run them with:
-
-```bash
-cmake --build . --target example_trg
-cmake --build . --target example_itebd_tfim
-
-./example_trg
-./example_itebd_tfim
-```
-
-The iTEBD example is intentionally heavier than the basic unit tests.
+Tensor-network example applications (e.g., a TRG demo and an iTEBD demo) are planned but not yet part of this repository. When added, they will appear under `example/` and be built as `make example_*` targets.
 
 ## Diagnostics
 
@@ -171,19 +148,14 @@ Verbose levels:
 Useful commands:
 
 ```bash
-# Configure with debug build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
+# Clean build
+make clean && make
 
 # Run the complete test suite
-ctest --output-on-failure
-
-# Run a focused test executable
 ./test_tcapi
 
-# Build examples
-cmake --build . --target example_trg
-cmake --build . --target example_itebd_tfim
+# Debug build (extra assertions/symbols)
+make debug && ./test_tcapi-g
 ```
 
 ## Related Projects
