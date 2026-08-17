@@ -33,7 +33,20 @@ make
 ### 4. Run Tests
 
 ```bash
-./test_tcapi
+make test-all
+```
+
+## TRG Example
+
+The Tensor Renormalization Group example for the two-dimensional classical
+Ising model is in `examples/trg.cc`. It follows the ITensor TRG tutorial while
+using the TCAPI operations for allocation, truncated SVD, contraction, and
+normalization.
+
+```bash
+make examples
+./examples/trg                 # T=3.0, max bond dimension=8, 6 scales
+./examples/trg 2.269185 12 6   # near the critical temperature
 ```
 
 ## Usage Example

@@ -82,12 +82,7 @@ void test_spin_expectation_example()
     destroy_context(ctx);
 }
 
-// Unported-example documentation test: the numpy backend's example suite also
-// includes TRG and iTEBD flow examples built on the example/trg, example/itebd
-// modules. No C++ analogue of those modules (or the required multiscale
-// entanglement renormalization helpers) exists in this repo, so those tests
-// remain unported. This test documents the expectation explicitly.
-void test_unported_examples_noted()
+void test_example_support_primitives()
 {
     ItensorContext ctx; create_context(ctx);
     // verify the primed-pair machinery used by iTEBD-style flows is present
@@ -100,7 +95,7 @@ int main()
 {
     tc_test::run_test("test_partition_function_example", test_partition_function_example);
     tc_test::run_test("test_spin_expectation_example", test_spin_expectation_example);
-    tc_test::run_test("test_unported_examples_noted", test_unported_examples_noted);
+    tc_test::run_test("test_example_support_primitives", test_example_support_primitives);
 
     std::printf("%d checks, %d failures\n", tc_test::g_checks, tc_test::g_failures);
     return tc_test::g_failures == 0 ? 0 : 1;
