@@ -66,3 +66,6 @@ endforeach()
 # ---- Example ----
 add_executable(trg examples/trg.cc)
 target_link_libraries(trg PRIVATE tcapi)
+
+add_executable(itebd examples/itebd.cc)
+target_link_libraries(itebd PRIVATE tcapi)

@@ -10,7 +10,7 @@
 namespace tcapi {
 
 template<typename TenT>
-ten_t<TenT> allocate(const context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
+ten_t<TenT> allocate(context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = detail::make_indices<TenT>(shape);
@@ -29,7 +29,7 @@ ten_t<TenT> allocate(const context_handle_t<TenT>& ctx, const shape_t<TenT>& sha
 }
 
 template<typename TenT>
-ten_t<TenT> zeros(const context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
+ten_t<TenT> zeros(context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
 {
     detail::ensure_active<TenT>(ctx);
     auto A = allocate<TenT>(ctx, shape);
@@ -42,7 +42,7 @@ ten_t<TenT> zeros(const context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
 }
 
 template<typename TenT>
-ten_t<TenT> fill(const context_handle_t<TenT>& ctx,
+ten_t<TenT> fill(context_handle_t<TenT>& ctx,
                   const shape_t<TenT>& shape,
                   elem_t<TenT> v)
 {
@@ -57,7 +57,7 @@ ten_t<TenT> fill(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT, typename RandNumGen>
-ten_t<TenT> random(const context_handle_t<TenT>& ctx,
+ten_t<TenT> random(context_handle_t<TenT>& ctx,
                     const shape_t<TenT>& shape,
                     RandNumGen& gen)
 {
@@ -73,7 +73,7 @@ ten_t<TenT> random(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-ten_t<TenT> eye(const context_handle_t<TenT>& ctx, bond_dim_t<TenT> n)
+ten_t<TenT> eye(context_handle_t<TenT>& ctx, bond_dim_t<TenT> n)
 {
     detail::ensure_active<TenT>(ctx);
     itensor::Index i(static_cast<int>(n), "b0");
@@ -84,14 +84,14 @@ ten_t<TenT> eye(const context_handle_t<TenT>& ctx, bond_dim_t<TenT> n)
 }
 
 template<typename TenT>
-ten_t<TenT> copy(const context_handle_t<TenT>& ctx, const ten_t<TenT>& orig)
+ten_t<TenT> copy(context_handle_t<TenT>& ctx, const ten_t<TenT>& orig)
 {
     detail::ensure_active<TenT>(ctx);
-    return ten_t<TenT>(orig);
+    return orig * real_t<TenT>{1};
 }
 
 template<typename TenT>
-ten_t<TenT> move(const context_handle_t<TenT>& ctx, ten_t<TenT>& from)
+ten_t<TenT> move(context_handle_t<TenT>& ctx, ten_t<TenT>& from)
 {
     detail::ensure_active<TenT>(ctx);
     ten_t<TenT> moved(std::move(from));
@@ -100,14 +100,14 @@ ten_t<TenT> move(const context_handle_t<TenT>& ctx, ten_t<TenT>& from)
 }
 
 template<typename TenT>
-void clear(const context_handle_t<TenT>& ctx, ten_t<TenT>& a)
+void clear(context_handle_t<TenT>& ctx, ten_t<TenT>& a)
 {
     detail::ensure_active<TenT>(ctx);
     a = ten_t<TenT>{};
 }
 
 template<typename TenT, typename RandomIt, typename Func>
-ten_t<TenT> assign_from_range(const context_handle_t<TenT>& ctx,
+ten_t<TenT> assign_from_range(context_handle_t<TenT>& ctx,
                                const shape_t<TenT>& shape,
                                RandomIt first,
                                Func coors2idx)

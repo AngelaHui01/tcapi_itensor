@@ -34,7 +34,7 @@ std::string version()
 }
 
 template<typename TenT>
-void show(const context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+void show(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 {
     detail::ensure_active<TenT>(ctx);
     auto sh = shape<TenT>(ctx, a);
@@ -46,7 +46,7 @@ void show(const context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 }
 
 template<typename TenT>
-bool close(const context_handle_t<TenT>& ctx,
+bool close(context_handle_t<TenT>& ctx,
            const ten_t<TenT>& a, const ten_t<TenT>& b,
            real_t<TenT> epsilon)
 {
@@ -77,8 +77,8 @@ bool close(const context_handle_t<TenT>& ctx,
 }
 
 template<typename Ten1T, typename Ten2T>
-void convert(const context_handle_t<Ten1T>& ctx1, const ten_t<Ten1T>& t1,
-             const context_handle_t<Ten2T>& ctx2, ten_t<Ten2T>& t2)
+void convert(context_handle_t<Ten1T>& ctx1, const ten_t<Ten1T>& t1,
+             context_handle_t<Ten2T>& ctx2, ten_t<Ten2T>& t2)
 {
     detail::ensure_active<Ten1T>(ctx1);
     detail::ensure_active<Ten2T>(ctx2);
@@ -113,7 +113,7 @@ void convert(const context_handle_t<Ten1T>& ctx1, const ten_t<Ten1T>& t1,
 }
 
 template<typename TenT, typename RandomIt, typename Func>
-void to_range(const context_handle_t<TenT>& ctx,
+void to_range(context_handle_t<TenT>& ctx,
               const ten_t<TenT>& a, RandomIt first, Func coors2idx)
 {
     detail::ensure_active<TenT>(ctx);

@@ -37,7 +37,7 @@ inline bool shape_equals(ItensorContext& ctx, const itensor::ITensor& t,
 
 // logical element access
 template<typename TenT>
-inline elem_t<TenT> at(const context_handle_t<TenT>& ctx,
+inline elem_t<TenT> at(context_handle_t<TenT>& ctx,
                        const ten_t<TenT>& t,
                        std::initializer_list<long> c)
 {
@@ -57,7 +57,7 @@ inline bool approx(std::complex<double> a, std::complex<double> b, double tol = 
 
 // all-element relative/absolute tolerance check (shape must match)
 template<typename TenT>
-inline bool all_close(const context_handle_t<TenT>& ctx,
+inline bool all_close(context_handle_t<TenT>& ctx,
                       const ten_t<TenT>& a, const ten_t<TenT>& b,
                       double rtol = 1e-7, double atol = 1e-12)
 {
@@ -76,7 +76,7 @@ inline bool all_close(const context_handle_t<TenT>& ctx,
 
 // Frobenius norm and max-abs helpers
 template<typename TenT>
-inline double frob(const context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
+inline double frob(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 {
     auto sh = shape<TenT>(ctx, t);
     double s = 0;
@@ -89,7 +89,7 @@ inline double frob(const context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 }
 
 template<typename TenT>
-inline double max_abs(const context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
+inline double max_abs(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 {
     auto sh = shape<TenT>(ctx, t);
     double m = 0;
@@ -102,7 +102,7 @@ inline double max_abs(const context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 
 // SVD reconstruction residual ||a - u*s*vdag|| (Frobenius)
 template<typename TenT>
-inline double svd_residual(const context_handle_t<TenT>& ctx,
+inline double svd_residual(context_handle_t<TenT>& ctx,
                            const ten_t<TenT>& a,
                            const ten_t<TenT>& u,
                            const ten_t<TenT>& s,
@@ -121,7 +121,7 @@ inline double svd_residual(const context_handle_t<TenT>& ctx,
 
 // singular values (reads the diagonal of a real sigma tensor)
 template<typename TenT>
-inline std::vector<double> sing_vals(const context_handle_t<TenT>& ctx,
+inline std::vector<double> sing_vals(context_handle_t<TenT>& ctx,
                                      const real_ten_t<TenT>& sigma)
 {
     std::vector<double> out;

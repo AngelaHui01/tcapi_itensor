@@ -14,7 +14,7 @@
 namespace tcapi {
 
 template<typename TenT>
-void set_elem(const context_handle_t<TenT>& ctx,
+void set_elem(context_handle_t<TenT>& ctx,
               ten_t<TenT>& a,
               const elem_coors_t<TenT>& coors,
               elem_t<TenT> el)
@@ -28,7 +28,7 @@ void set_elem(const context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-void reshape_impl(const context_handle_t<TenT>& ctx,
+void reshape_impl(context_handle_t<TenT>& ctx,
                   const ten_t<TenT>& in,
                   const shape_t<TenT>& new_shape,
                   ten_t<TenT>& out)
@@ -60,7 +60,7 @@ void reshape_impl(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void transpose_impl(const context_handle_t<TenT>& ctx,
+void transpose_impl(context_handle_t<TenT>& ctx,
                     const ten_t<TenT>& in,
                     const List<bond_idx_t<TenT>>& new_order,
                     ten_t<TenT>& out)
@@ -86,7 +86,7 @@ void transpose_impl(const context_handle_t<TenT>& ctx,
 } // namespace detail
 
 template<typename TenT>
-void reshape(const context_handle_t<TenT>& ctx,
+void reshape(context_handle_t<TenT>& ctx,
              const ten_t<TenT>& in,
              const shape_t<TenT>& new_shape,
              ten_t<TenT>& out)
@@ -95,7 +95,7 @@ void reshape(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void reshape(const context_handle_t<TenT>& ctx,
+void reshape(context_handle_t<TenT>& ctx,
              ten_t<TenT>& inout,
              const shape_t<TenT>& new_shape)
 {
@@ -105,7 +105,7 @@ void reshape(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void transpose(const context_handle_t<TenT>& ctx,
+void transpose(context_handle_t<TenT>& ctx,
                const ten_t<TenT>& in,
                const List<bond_idx_t<TenT>>& new_order,
                ten_t<TenT>& out)
@@ -114,7 +114,7 @@ void transpose(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void transpose(const context_handle_t<TenT>& ctx,
+void transpose(context_handle_t<TenT>& ctx,
                ten_t<TenT>& inout,
                const List<bond_idx_t<TenT>>& new_order)
 {
@@ -124,7 +124,7 @@ void transpose(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void cplx_conj(const context_handle_t<TenT>& ctx,
+void cplx_conj(context_handle_t<TenT>& ctx,
                const ten_t<TenT>& in,
                ten_t<TenT>& out)
 {
@@ -136,14 +136,14 @@ void cplx_conj(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void cplx_conj(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
+void cplx_conj(context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
 {
     if constexpr (std::is_same_v<elem_t<TenT>, std::complex<double>>)
         inout = itensor::conj(inout);
 }
 
 template<typename TenT, typename Func>
-void for_each(const context_handle_t<TenT>& ctx,
+void for_each(context_handle_t<TenT>& ctx,
               const ten_t<TenT>& in,
               ten_t<TenT>& out,
               Func f)
@@ -161,7 +161,7 @@ void for_each(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT, typename Func>
-void for_each(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout, Func f)
+void for_each(context_handle_t<TenT>& ctx, ten_t<TenT>& inout, Func f)
 {
     detail::ensure_active<TenT>(ctx);
     auto dims = shape<TenT>(ctx, inout);
@@ -178,7 +178,7 @@ void for_each(const context_handle_t<TenT>& ctx, ten_t<TenT>& inout, Func f)
 }
 
 template<typename TenT, typename Func>
-void for_each(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in, Func f)
+void for_each(context_handle_t<TenT>& ctx, const ten_t<TenT>& in, Func f)
 {
     detail::ensure_active<TenT>(ctx);
     auto dims = shape<TenT>(ctx, in);
@@ -189,7 +189,7 @@ void for_each(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in, Func f)
 }
 
 template<typename TenT, typename Func>
-void for_each_with_coors(const context_handle_t<TenT>& ctx,
+void for_each_with_coors(context_handle_t<TenT>& ctx,
                          const ten_t<TenT>& in,
                          ten_t<TenT>& out,
                          Func f)
@@ -207,7 +207,7 @@ void for_each_with_coors(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT, typename Func>
-void for_each_with_coors(const context_handle_t<TenT>& ctx,
+void for_each_with_coors(context_handle_t<TenT>& ctx,
                          ten_t<TenT>& inout,
                          Func f)
 {
@@ -226,7 +226,7 @@ void for_each_with_coors(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT, typename Func>
-void for_each_with_coors(const context_handle_t<TenT>& ctx,
+void for_each_with_coors(context_handle_t<TenT>& ctx,
                          const ten_t<TenT>& in,
                          Func f)
 {
@@ -239,7 +239,7 @@ void for_each_with_coors(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-ten_t<TenT> concatenate(const context_handle_t<TenT>& ctx,
+ten_t<TenT> concatenate(context_handle_t<TenT>& ctx,
                          const List<CRef<ten_t<TenT>>>& ins,
                          bond_idx_t<TenT> concat_bdidx)
 {
@@ -270,7 +270,7 @@ ten_t<TenT> concatenate(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-ten_t<TenT> stack(const context_handle_t<TenT>& ctx,
+ten_t<TenT> stack(context_handle_t<TenT>& ctx,
                    const List<CRef<ten_t<TenT>>>& ins,
                    bond_idx_t<TenT> stack_bdidx)
 {
@@ -316,7 +316,7 @@ ten_t<TenT> stack(const context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-void expand_impl(const context_handle_t<TenT>& ctx,
+void expand_impl(context_handle_t<TenT>& ctx,
                  const ten_t<TenT>& in,
                  const Map<bond_idx_t<TenT>, bond_dim_t<TenT>>& incmap,
                  ten_t<TenT>& out)
@@ -339,7 +339,7 @@ void expand_impl(const context_handle_t<TenT>& ctx,
 } // namespace detail
 
 template<typename TenT>
-void expand(const context_handle_t<TenT>& ctx,
+void expand(context_handle_t<TenT>& ctx,
             ten_t<TenT>& inout,
             const Map<bond_idx_t<TenT>, bond_dim_t<TenT>>& bond_idx_increment_map)
 {
@@ -349,7 +349,7 @@ void expand(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void expand(const context_handle_t<TenT>& ctx,
+void expand(context_handle_t<TenT>& ctx,
             const ten_t<TenT>& in,
             const Map<bond_idx_t<TenT>, bond_dim_t<TenT>>& bond_idx_increment_map,
             ten_t<TenT>& out)
@@ -360,7 +360,7 @@ void expand(const context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-void shrink_impl(const context_handle_t<TenT>& ctx,
+void shrink_impl(context_handle_t<TenT>& ctx,
                  const ten_t<TenT>& in,
                  const bond_idx_elem_coor_pair_map<TenT>& ranges,
                  ten_t<TenT>& out)
@@ -403,7 +403,7 @@ void shrink_impl(const context_handle_t<TenT>& ctx,
 } // namespace detail
 
 template<typename TenT>
-void shrink(const context_handle_t<TenT>& ctx,
+void shrink(context_handle_t<TenT>& ctx,
             ten_t<TenT>& inout,
             const detail::bond_idx_elem_coor_pair_map<TenT>& bdidx_elcoor_pair_map)
 {
@@ -413,7 +413,7 @@ void shrink(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void shrink(const context_handle_t<TenT>& ctx,
+void shrink(context_handle_t<TenT>& ctx,
             const ten_t<TenT>& in,
             const detail::bond_idx_elem_coor_pair_map<TenT>& bdidx_elcoor_pair_map,
             ten_t<TenT>& out)
@@ -424,7 +424,7 @@ void shrink(const context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-void extract_sub_impl(const context_handle_t<TenT>& ctx,
+void extract_sub_impl(context_handle_t<TenT>& ctx,
                       const ten_t<TenT>& in,
                       const List<Pair<elem_coor_t<TenT>, elem_coor_t<TenT>>>& coor_pairs,
                       ten_t<TenT>& out)
@@ -449,7 +449,7 @@ void extract_sub_impl(const context_handle_t<TenT>& ctx,
 } // namespace detail
 
 template<typename TenT>
-void extract_sub(const context_handle_t<TenT>& ctx,
+void extract_sub(context_handle_t<TenT>& ctx,
                  ten_t<TenT>& inout,
                  const List<Pair<elem_coor_t<TenT>, elem_coor_t<TenT>>>& coor_pairs)
 {
@@ -459,7 +459,7 @@ void extract_sub(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void extract_sub(const context_handle_t<TenT>& ctx,
+void extract_sub(context_handle_t<TenT>& ctx,
                  const ten_t<TenT>& in,
                  const List<Pair<elem_coor_t<TenT>, elem_coor_t<TenT>>>& coor_pairs,
                  ten_t<TenT>& out)
@@ -470,7 +470,7 @@ void extract_sub(const context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-void replace_sub_impl(const context_handle_t<TenT>& ctx,
+void replace_sub_impl(context_handle_t<TenT>& ctx,
                       const ten_t<TenT>& in,
                       const ten_t<TenT>& sub,
                       const elem_coors_t<TenT>& begin_pt,
@@ -494,7 +494,7 @@ void replace_sub_impl(const context_handle_t<TenT>& ctx,
 } // namespace detail
 
 template<typename TenT>
-void replace_sub(const context_handle_t<TenT>& ctx,
+void replace_sub(context_handle_t<TenT>& ctx,
                  ten_t<TenT>& inout,
                  const ten_t<TenT>& sub,
                  const elem_coors_t<TenT>& begin_pt)
@@ -505,7 +505,7 @@ void replace_sub(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void replace_sub(const context_handle_t<TenT>& ctx,
+void replace_sub(context_handle_t<TenT>& ctx,
                  const ten_t<TenT>& in,
                  const ten_t<TenT>& sub,
                  const elem_coors_t<TenT>& begin_pt,
@@ -515,7 +515,7 @@ void replace_sub(const context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-real_ten_t<TenT> real(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
+real_ten_t<TenT> real(context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
 {
     detail::ensure_active<TenT>(ctx);
     auto sh = shape<TenT>(ctx, in);
@@ -539,7 +539,7 @@ real_ten_t<TenT> real(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
 }
 
 template<typename TenT>
-real_ten_t<TenT> imag(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
+real_ten_t<TenT> imag(context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
 {
     detail::ensure_active<TenT>(ctx);
     auto sh = shape<TenT>(ctx, in);
@@ -560,7 +560,7 @@ real_ten_t<TenT> imag(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
 }
 
 template<typename TenT>
-cplx_ten_t<TenT> to_cplx(const context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
+cplx_ten_t<TenT> to_cplx(context_handle_t<TenT>& ctx, const ten_t<TenT>& in)
 {
     detail::ensure_active<TenT>(ctx);
     if constexpr (std::is_same_v<elem_t<TenT>, std::complex<double>>)

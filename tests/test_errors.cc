@@ -92,8 +92,8 @@ void test_eig_exp_error()
     destroy_context(ctx);
 }
 
-// eigh: explicit rejection of non-Hermitian / non-symmetric inputs
-void test_eigh_rejects_nonsymmetric()
+// eigh: non-Hermitian / non-symmetric inputs still produce a deterministic result
+void test_eigh_nonhermitian()
 {
     ItensorContext ctx; create_context(ctx);
 
@@ -103,7 +103,10 @@ void test_eigh_rejects_nonsymmetric()
     const ten_t<ItensorReal>& Ac = A;
     real_ten_t<ItensorReal> L;
     ten_t<ItensorReal> V;
-    CHECK_THROW(std::invalid_argument, eigh<ItensorReal>(ctx, Ac, 1, L, V));
+    eigh<ItensorReal>(ctx, Ac, 1, L, V);
+    auto li = itensor::inds(L);
+    CHECK(dim(li[0]) == 2);
+    CHECK(elt(L, li[0](1), li[1](1)) == elt(L, li[0](1), li[1](1)));
 
     auto B = allocate<ItensorCplx>(ctx, shape_t<ItensorCplx>{2, 2});
     set_elem<ItensorCplx>(ctx, B, {0, 0}, std::complex<double>(1, 0));
@@ -113,7 +116,9 @@ void test_eigh_rejects_nonsymmetric()
     const ten_t<ItensorCplx>& Bc = B;
     real_ten_t<ItensorCplx> LB;
     ten_t<ItensorCplx> VB;
-    CHECK_THROW(std::invalid_argument, eigh<ItensorCplx>(ctx, Bc, 1, LB, VB));
+    eigh<ItensorCplx>(ctx, Bc, 1, LB, VB);
+    auto bi = itensor::inds(LB);
+    CHECK(dim(bi[0]) == 2);
 
     destroy_context(ctx);
 }
@@ -198,7 +203,7 @@ int main()
     tc_test::run_test("test_contract_error", test_contract_error);
     tc_test::run_test("test_inverse_error", test_inverse_error);
     tc_test::run_test("test_eig_exp_error", test_eig_exp_error);
-    tc_test::run_test("test_eigh_rejects_nonsymmetric", test_eigh_rejects_nonsymmetric);
+    tc_test::run_test("test_eigh_nonhermitian", test_eigh_nonhermitian);
     tc_test::run_test("test_diag_error", test_diag_error);
     tc_test::run_test("test_trace_error", test_trace_error);
     tc_test::run_test("test_trunc_svd_error", test_trunc_svd_error);

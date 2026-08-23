@@ -19,7 +19,7 @@ struct Factors
     double truncation_error = 0.0;
 };
 
-Factors split_factor(const Context& ctx, const Tensor& a, int row_bonds, long maxdim)
+Factors split_factor(Context& ctx, const Tensor& a, int row_bonds, long maxdim)
 {
     Tensor u;
     Tensor vdag;
@@ -58,7 +58,7 @@ Factors split_factor(const Context& ctx, const Tensor& a, int row_bonds, long ma
     return {std::move(left), std::move(right), truncation_error};
 }
 
-Tensor ising_weight(const Context& ctx, double temperature)
+Tensor ising_weight(Context& ctx, double temperature)
 {
     auto a = tcapi::zeros<TenT>(ctx, {2, 2, 2, 2});
     auto spin = [](long s) { return s == 0 ? 1.0 : -1.0; };
@@ -75,7 +75,7 @@ Tensor ising_weight(const Context& ctx, double temperature)
     return a;
 }
 
-double double_trace(const Context& ctx, const Tensor& a)
+double double_trace(Context& ctx, const Tensor& a)
 {
     auto dims = tcapi::shape<TenT>(ctx, a);
     if(dims.size() != 4 || dims[0] != dims[1] || dims[2] != dims[3])
@@ -88,7 +88,7 @@ double double_trace(const Context& ctx, const Tensor& a)
     return result;
 }
 
-double run_trg(const Context& ctx, double temperature, long maxdim, int topscale)
+double run_trg(Context& ctx, double temperature, long maxdim, int topscale)
 {
     Tensor a = ising_weight(ctx, temperature);
     double log_z_per_site = 0.0;
