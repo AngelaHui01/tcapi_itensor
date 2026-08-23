@@ -6,8 +6,8 @@ This file encodes project conventions and the intended AI-assisted workflow for 
 
 - **Goal:** Implement the C++ TCAPI specification on top of the ITensor library, with semantics matching the TCAPI paper and the Python/NumPy backend (`tcapi_numpy`).
 - **Language/Standard:** C++17
-- **Build system:** Make (via ITensor v3's `this_dir.mk` / `options.mk`); ITensor itself requires `-std=c++17`
-- **Backend:** ITensor v3 (`itensor/` is vendored in-tree)
+- **Build system:** CMake (TCAPI project); ITensor is built separately by its own Make workflow and linked as an external dependency
+- **Backend:** ITensor v3 (`itensor/` is vendored in-tree, pre-built libs in `itensor/lib`)
 - **Namespace:** `tcapi`
 - **Primary tensor type:** `itensor::ITensor` (dense storage)
 
@@ -15,11 +15,11 @@ This file encodes project conventions and the intended AI-assisted workflow for 
 
 ```text
 tcapi_itensor/
-├── Makefile
+├── CMakeLists.txt
 ├── README.md
 ├── AGENTS.md
 ├── LICENSE
-├── itensor/                # vendored ITensor v3 library
+├── itensor/                # vendored ITensor v3 library (built via its own Make workflow)
 ├── include/
 │   └── tcapi/
 │       ├── tcapi.h          # single public header; include this to get all of tcapi
@@ -35,18 +35,26 @@ tcapi_itensor/
 │       │                    # exp, inverse, svd, trunc_svd, qr, lq, eig, eigvals, eigh, eigvalsh
 │       ├── misc.h           # create_context, destroy_context, version, show, close, convert, to_range
 │       └── diagnostics.h    # TCAPI_VERBOSE environment-variable diagnostics
-└── tests/                   # standalone unit test suite (tests/test_*.cc -> binaries in tests/)
-    └── tc_test_util.h       # shared test helpers (CHECK, approx, at, ...)
+├── examples/               # examples/trg.cc (TRG for 2D Ising) -> binary build/trg
+└── tests/                  # test_<area>.cc + tc_test_util.h; binaries built into build/
 ```
 
-The implementation is header-only (templates in `include/tcapi/`); there is no `src/` or CMake build. If you are generating or modifying files, keep this structure unless there is a compelling reason to change it.
+The implementation is header-only (templates in `include/tcapi/`); there is no `src/`.
+
+## Build & Test
+
+- `cmake -S . -B build` — configure the CMake project out-of-source into `build/`.
+- `cmake --build build` — builds all test binaries AND the `trg` example.
+- `ctest --test-dir build --output-on-failure` — runs every registered test. All tests currently pass.
+- Single test: `cmake --build build --target test_linalg && ./build/test_linalg`.
+- `rm -rf build` — clean build.
+
+### Build gotchas
+
+- ITensor is an external dependency: it is built with its own Make workflow (`make -C itensor`), and the TCAPI CMake project links against the pre-built `itensor/lib/libitensor.a`. Configure fails with a hint if that library is missing.
+- CMake builds strictly out-of-source into `build/` (gitignored); nothing is written into `tests/` or `examples/`. Do not stage `build/` or any `*.o` files in commits.
 
 ## Coding Conventions
-
-### C++17
-
-- The codebase and ITensor require C++17. You may use C++17 features (`if constexpr`, `std::string_view`, structured bindings, etc.).
-- Build and run the full test suite with `make test-all` (default `make` builds the standalone test binaries).
 
 ### Naming and Signatures
 
@@ -57,6 +65,7 @@ The implementation is header-only (templates in `include/tcapi/`); there is no `
   - Use the traits-forwarding aliases instead of spelling out `typename tensor_traits<TenT>::...`: `ten_t<TenT>`, `order_t<TenT>`, `shape_t<TenT>`, `bond_dim_t<TenT>`, `bond_idx_t<TenT>`, `bond_label_t<TenT>`, `ten_size_t<TenT>`, `elem_t<TenT>`, `elem_coor_t<TenT>`, `elem_coors_t<TenT>`, `real_t<TenT>`, `real_ten_t<TenT>`, `cplx_t<TenT>`, `cplx_ten_t<TenT>`, `context_handle_t<TenT>`.
   - The concrete tensor type is spelled `ten_t<TenT>` (member type `tcapi::tensor_traits<TenT>::ten_t`), **not** `tent_t` or any other name.
   - Take `const context_handle_t<TenT>& ctx` as the first argument.
+- Do **not** rename functions to match ITensor's native API (e.g., do not call it `expHermitianWrapper`). The public name must be `exp`.
 - Example signature pattern:
 
   ```cpp
@@ -66,26 +75,16 @@ The implementation is header-only (templates in `include/tcapi/`); there is no `
            order_t<TenT> num_of_bds_as_row);
   ```
 
-- Do **not** rename functions to match ITensor's native API (e.g., do not call it `expHermitianWrapper`). The public name must be `exp`.
+### Context Handling
+
+- Every public TCAPI function must call `ensure_active(ctx)` as its first statement (it throws `std::runtime_error` on a destroyed context).
+- `create_context` and `destroy_context` are the only functions that construct/destroy the underlying context state.
 
 ### Error Handling
 
-- Use `std::invalid_argument` for:
-  - Shape mismatches.
-  - Invalid `num_of_bds_as_row`.
-  - Non-square matrices where required.
-- Use `std::runtime_error` for:
-  - Backend failures (e.g., ITensor throws, singular matrices in inversion).
-- Error messages should be concise and start with the function name, e.g.:
-
-  ```cpp
-  throw std::invalid_argument("eigh: row/col index count mismatch.");
-  ```
-
-### Context Handling
-
-- Every public TCAPI function must call `ensure_active(ctx)` (or equivalent) as its first statement to validate the context.
-- `create_context` and `destroy_context` are the only functions that construct/destroy the underlying context state.
+- Use `std::invalid_argument` for shape mismatches, invalid `num_of_bds_as_row`, non-square matrices where required.
+- Use `std::runtime_error` for backend failures (e.g., ITensor throws, singular matrices in inversion, zero tensor in normalize).
+- Error messages start with the function name, e.g. `throw std::invalid_argument("eigh: matricized tensor must be square.");`
 
 ### Comments
 
@@ -98,16 +97,15 @@ The implementation is header-only (templates in `include/tcapi/`); there is no `
 
 ## Test Conventions
 
-- Tests live in the standalone files `tests/test_*.cc`, built by `make` into binaries in `tests/`. Run the full suite with `make test-all`.
-- Test naming: `test_<function_name>()`, e.g. `test_exp()`, `test_eigh()`.
+- Tests live in the standalone files `tests/test_*.cc` (`test_constructors`, `test_contract`, `test_manipulation`, `test_linalg`, `test_io_misc`, `test_errors`, `test_examples`), built by the CMake project into binaries in `build/`.
+- Test function naming: `test_<function_name>()`, e.g. `test_exp()`, `test_eigh()`.
 - Each test should:
   - Create a context via `create_context`.
   - Call the TCAPI function under test.
-  - Use the `CHECK` macro or simple comparisons from `tests/tc_test_util.h` to check numeric results.
+  - Use helpers from `tests/tc_test_util.h`: `CHECK`, `CHECK_APPROX`, `CHECK_THROW`, `CHECK_SHAPE`, `CHECK_ALL_CLOSE`, `approx`, `all_close`, `at`.
   - Destroy the context via `destroy_context`.
-  - Be registered in `main()` in the same file.
-
-Where possible, mirror the numeric values and shapes from the `tcapi_numpy` tests so that results are directly comparable across backends.
+  - Be registered in `main()` in the same file via `tc_test::run_test(...)`.
+- Where possible, mirror the numeric values and shapes from the `tcapi_numpy` tests so that results are directly comparable across backends.
 
 ## AI-Assisted Porting Workflow
 
@@ -167,14 +165,4 @@ This repository is part of a broader effort to use AI agents for cross-language 
 - Don't introduce backend-specific behavior that breaks compatibility with the TCAPI spec.
 - Don't add docstrings or documentation comment blocks to function files.
 - Don't add heavy dependencies beyond ITensor and standard C++ without discussion.
-
-## Future Directions
-
-Possible extensions (not required for the initial implementation):
-
-- Support for symmetry-aware (QN) ITensors.
-- GPU execution via ITensor's GPU backends.
-- Automatic differentiation support (if/when TCAPI defines an AD API).
-- Additional example applications (e.g., DMRG, PEPS, quantum circuit simulation).
-
-These can be added later without changing the core TCAPI interface.
+- Don't commit build artifacts (`build/`, `*.o` files) without explicit request.

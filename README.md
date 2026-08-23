@@ -8,7 +8,7 @@ The project is named `tcapi_itensor`; the C++ namespace is `tcapi`.
 
 - **C++17** or later
 - **ITensor** (ITensor v3, built with `-std=c++17`)
-- **Make** (driven by ITensor's `this_dir.mk` / `options.mk`)
+- **CMake** (3.16 or later)
 - A C++17-capable compiler (e.g., GCC 9+, Clang 10+, or recent MSVC)
 
 ## Quick Start
@@ -22,18 +22,26 @@ cd tcapi_itensor
 
 ### 2. Install Dependencies
 
-ITensor v3 is vendored in-tree under `itensor/` (pre-built library in `itensor/lib`), so no external install is required.
-
-### 3. Build the Project
+ITensor v3 is vendored in-tree under `itensor/` and treated as an external
+dependency: it keeps its own Make-based build workflow, and the TCAPI CMake
+build links against the resulting static library in `itensor/lib`. If the
+library is absent (e.g. a fresh clone), build ITensor first:
 
 ```bash
-make
+make -C itensor
+```
+
+### 3. Configure and Build (CMake)
+
+```bash
+cmake -S . -B build
+cmake --build build
 ```
 
 ### 4. Run Tests
 
 ```bash
-make test-all
+ctest --test-dir build --output-on-failure
 ```
 
 ## TRG Example
@@ -44,9 +52,8 @@ using the TCAPI operations for allocation, truncated SVD, contraction, and
 normalization.
 
 ```bash
-make examples
-./examples/trg                 # T=3.0, max bond dimension=8, 6 scales
-./examples/trg 2.269185 12 6   # near the critical temperature
+./build/trg                 # T=3.0, max bond dimension=8, 6 scales
+./build/trg 2.269185 12 6   # near the critical temperature
 ```
 
 ## Usage Example
@@ -136,7 +143,7 @@ For tensor decompositions, `num_of_bds_as_row` controls how many leading tensor 
 
 ## Examples
 
-Tensor-network example applications (e.g., a TRG demo and an iTEBD demo) are planned but not yet part of this repository. When added, they will appear under `example/` and be built as `make example_*` targets.
+Tensor-network example applications (e.g., a TRG demo and an iTEBD demo) are planned but not yet part of this repository. When added, they will be built by the CMake project as additional executables.
 
 ## Diagnostics
 
@@ -144,10 +151,10 @@ Set `TCAPI_VERBOSE` to print runtime call diagnostics:
 
 ```bash
 export TCAPI_VERBOSE=1
-./test_tcapi
+./build/test_linalg
 
 export TCAPI_VERBOSE=2
-./example_itebd_tfim
+./build/trg
 ```
 
 Verbose levels:
@@ -162,13 +169,10 @@ Useful commands:
 
 ```bash
 # Clean build
-make clean && make
+rm -rf build && cmake -S . -B build && cmake --build build
 
 # Run the complete test suite
-./test_tcapi
-
-# Debug build (extra assertions/symbols)
-make debug && ./test_tcapi-g
+ctest --test-dir build --output-on-failure
 ```
 
 ## Related Projects

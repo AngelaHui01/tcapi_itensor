@@ -5,3 +5,11 @@
 test_tcapi
 test_tcapi-g
 *.log
+
+# CMake build artifacts
+/build/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+cmake_install.cmake
