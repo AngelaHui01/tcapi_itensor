@@ -17,16 +17,16 @@
 namespace tcapi {
 
 template<typename TenT>
-real_t<TenT> norm(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+real_t<TenT> norm(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     return itensor::norm(a);
 }
 
 template<typename TenT>
-ten_t<TenT> contract(context_handle_t<TenT>& ctx,
-                      const ten_t<TenT>& a,
-                      const ten_t<TenT>& b)
+TenT contract(context_handle_t<TenT>& ctx,
+                      const TenT& a,
+                      const TenT& b)
 {
     detail::ensure_active<TenT>(ctx);
     return a * b;
@@ -35,10 +35,10 @@ ten_t<TenT> contract(context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT, typename Lab>
-ten_t<TenT> contract_labeled(context_handle_t<TenT>& ctx,
-                              const ten_t<TenT>& a,
+TenT contract_labeled(context_handle_t<TenT>& ctx,
+                              const TenT& a,
                               const List<Lab>& bdlabs_a,
-                              const ten_t<TenT>& b,
+                              const TenT& b,
                               const List<Lab>& bdlabs_b,
                               const List<Lab>& bdlabs_c)
 {
@@ -132,9 +132,9 @@ ten_t<TenT> contract_labeled(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void contract(context_handle_t<TenT>& ctx,
-              const ten_t<TenT>& a, const List<bond_label_t<TenT>>& bdlabs_a,
-              const ten_t<TenT>& b, const List<bond_label_t<TenT>>& bdlabs_b,
-              ten_t<TenT>& c, const List<bond_label_t<TenT>>& bdlabs_c)
+              const TenT& a, const List<bond_label_t<TenT>>& bdlabs_a,
+              const TenT& b, const List<bond_label_t<TenT>>& bdlabs_b,
+              TenT& c, const List<bond_label_t<TenT>>& bdlabs_c)
 {
     detail::ensure_active<TenT>(ctx);
     c = detail::contract_labeled<TenT, bond_label_t<TenT>>(
@@ -143,9 +143,9 @@ void contract(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void contract(context_handle_t<TenT>& ctx,
-              const ten_t<TenT>& a, const std::string_view bdlabs_a,
-              const ten_t<TenT>& b, const std::string_view bdlabs_b,
-              ten_t<TenT>& c, const std::string_view bdlabs_c)
+              const TenT& a, const std::string_view bdlabs_a,
+              const TenT& b, const std::string_view bdlabs_b,
+              TenT& c, const std::string_view bdlabs_c)
 {
     detail::ensure_active<TenT>(ctx);
     auto to_labs = [](const std::string_view s)
@@ -159,7 +159,7 @@ void contract(context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-void diag(context_handle_t<TenT>& ctx, const ten_t<TenT>& in, ten_t<TenT>& out)
+void diag(context_handle_t<TenT>& ctx, const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto ord = order<TenT>(ctx, in);
@@ -196,15 +196,15 @@ void diag(context_handle_t<TenT>& ctx, const ten_t<TenT>& in, ten_t<TenT>& out)
 }
 
 template<typename TenT>
-void diag(context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
+void diag(context_handle_t<TenT>& ctx, TenT& inout)
 {
-    ten_t<TenT> out;
+    TenT out;
     diag<TenT>(ctx, inout, out);
     inout = std::move(out);
 }
 
 template<typename TenT>
-void scale(context_handle_t<TenT>& ctx, ten_t<TenT>& inout, elem_t<TenT> s)
+void scale(context_handle_t<TenT>& ctx, TenT& inout, elem_t<TenT> s)
 {
     detail::ensure_active<TenT>(ctx);
     inout *= s;
@@ -212,14 +212,14 @@ void scale(context_handle_t<TenT>& ctx, ten_t<TenT>& inout, elem_t<TenT> s)
 
 template<typename TenT>
 void scale(context_handle_t<TenT>& ctx,
-           const ten_t<TenT>& in, elem_t<TenT> s, ten_t<TenT>& out)
+           const TenT& in, elem_t<TenT> s, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = in * s;
 }
 
 template<typename TenT>
-real_t<TenT> normalize(context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
+real_t<TenT> normalize(context_handle_t<TenT>& ctx, TenT& inout)
 {
     detail::ensure_active<TenT>(ctx);
     real_t<TenT> n = itensor::norm(inout);
@@ -231,7 +231,7 @@ real_t<TenT> normalize(context_handle_t<TenT>& ctx, ten_t<TenT>& inout)
 
 template<typename TenT>
 real_t<TenT> normalize(context_handle_t<TenT>& ctx,
-                       const ten_t<TenT>& in, ten_t<TenT>& out)
+                       const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = in;
@@ -242,9 +242,9 @@ namespace detail {
 
 template<typename TenT>
 void trace_impl(context_handle_t<TenT>& ctx,
-                const ten_t<TenT>& in,
+                const TenT& in,
                 const bond_idx_pairs_t<TenT>& bdidx_pairs,
-                ten_t<TenT>& out)
+                TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto old_shape = shape<TenT>(ctx, in);
@@ -299,26 +299,26 @@ void trace_impl(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void trace(context_handle_t<TenT>& ctx,
-           ten_t<TenT>& inout,
+           TenT& inout,
            const detail::bond_idx_pairs_t<TenT>& bdidx_pairs)
 {
-    ten_t<TenT> out;
+    TenT out;
     detail::trace_impl<TenT>(ctx, inout, bdidx_pairs, out);
     inout = std::move(out);
 }
 
 template<typename TenT>
 void trace(context_handle_t<TenT>& ctx,
-           const ten_t<TenT>& in,
+           const TenT& in,
            const detail::bond_idx_pairs_t<TenT>& bdidx_pairs,
-           ten_t<TenT>& out)
+           TenT& out)
 {
     detail::trace_impl<TenT>(ctx, in, bdidx_pairs, out);
 }
 
 template<typename TenT>
-ten_t<TenT> linear_combine(context_handle_t<TenT>& ctx,
-                            const List<CRef<ten_t<TenT>>>& ins,
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            const List<CRef<TenT>>& ins,
                             const List<elem_t<TenT>>& coefs)
 {
     detail::ensure_active<TenT>(ctx);
@@ -344,8 +344,8 @@ ten_t<TenT> linear_combine(context_handle_t<TenT>& ctx,
 }
 
 template<typename TenT>
-ten_t<TenT> linear_combine(context_handle_t<TenT>& ctx,
-                            const List<CRef<ten_t<TenT>>>& ins)
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            const List<CRef<TenT>>& ins)
 {
     List<elem_t<TenT>> coefs(ins.size(), elem_t<TenT>{1});
     return linear_combine<TenT>(ctx, ins, coefs);
@@ -364,7 +364,7 @@ struct Matricized
 template<typename TenT>
 Matricized<TenT>
 matricize(context_handle_t<TenT>& ctx,
-          const ten_t<TenT>& a,
+          const TenT& a,
           order_t<TenT> num_of_bds_as_row,
           const char* fname)
 {
@@ -393,8 +393,8 @@ matricize(context_handle_t<TenT>& ctx,
 namespace detail {
 
 template<typename TenT>
-ten_t<TenT> exp_impl(context_handle_t<TenT>& ctx,
-                      const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+TenT exp_impl(context_handle_t<TenT>& ctx,
+                      const TenT& a, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
     auto mx = detail::matricize<TenT>(ctx, a, num_of_bds_as_row, "exp");
@@ -434,16 +434,16 @@ ten_t<TenT> exp_impl(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void exp(context_handle_t<TenT>& ctx,
-         ten_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
+         TenT& inout, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
-    ten_t<TenT> out = detail::exp_impl<TenT>(ctx, inout, num_of_bds_as_row);
+    TenT out = detail::exp_impl<TenT>(ctx, inout, num_of_bds_as_row);
     inout = std::move(out);
 }
 
 template<typename TenT>
 void exp(context_handle_t<TenT>& ctx,
-         const ten_t<TenT>& in, order_t<TenT> num_of_bds_as_row, ten_t<TenT>& out)
+         const TenT& in, order_t<TenT> num_of_bds_as_row, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = detail::exp_impl<TenT>(ctx, in, num_of_bds_as_row);
@@ -499,8 +499,8 @@ itensor::Mat<ElemT> gauss_jordan_inverse(const itensor::Mat<ElemT>& M, int n)
 }
 
 template<typename TenT>
-ten_t<TenT> inverse_impl(context_handle_t<TenT>& ctx,
-                          const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+TenT inverse_impl(context_handle_t<TenT>& ctx,
+                          const TenT& a, order_t<TenT> num_of_bds_as_row)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -557,23 +557,23 @@ ten_t<TenT> inverse_impl(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void inverse(context_handle_t<TenT>& ctx,
-             ten_t<TenT>& inout, order_t<TenT> num_of_bds_as_row)
+             TenT& inout, order_t<TenT> num_of_bds_as_row)
 {
-    ten_t<TenT> out = detail::inverse_impl<TenT>(ctx, inout, num_of_bds_as_row);
+    TenT out = detail::inverse_impl<TenT>(ctx, inout, num_of_bds_as_row);
     inout = std::move(out);
 }
 
 template<typename TenT>
-ten_t<TenT> inverse(context_handle_t<TenT>& ctx,
-                     const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row)
+TenT inverse(context_handle_t<TenT>& ctx,
+                     const TenT& a, order_t<TenT> num_of_bds_as_row)
 {
     return detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
 }
 
 template<typename TenT>
 void inverse(context_handle_t<TenT>& ctx,
-             const ten_t<TenT>& a, order_t<TenT> num_of_bds_as_row,
-             ten_t<TenT>& out)
+             const TenT& a, order_t<TenT> num_of_bds_as_row,
+             TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     out = detail::inverse_impl<TenT>(ctx, a, num_of_bds_as_row);
@@ -581,11 +581,11 @@ void inverse(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void svd(context_handle_t<TenT>& ctx,
-         const ten_t<TenT>& a,
+         const TenT& a,
          order_t<TenT> num_of_bds_as_row,
-         ten_t<TenT>& u,
+         TenT& u,
          real_ten_t<TenT>& sigma,
-         ten_t<TenT>& v_dag)
+         TenT& v_dag)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -612,11 +612,11 @@ void svd(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void trunc_svd(context_handle_t<TenT>& ctx,
-               const ten_t<TenT>& a,
+               const TenT& a,
                order_t<TenT> num_of_bds_as_row,
-               ten_t<TenT>& u,
+               TenT& u,
                real_ten_t<TenT>& sigma,
-               ten_t<TenT>& v_dag,
+               TenT& v_dag,
                real_t<TenT>& trunc_err,
                bond_dim_t<TenT> chi_min,
                bond_dim_t<TenT> chi_max,
@@ -692,11 +692,11 @@ void trunc_svd(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void trunc_svd(context_handle_t<TenT>& ctx,
-               const ten_t<TenT>& a,
+               const TenT& a,
                order_t<TenT> num_of_bds_as_row,
-               ten_t<TenT>& u,
+               TenT& u,
                real_ten_t<TenT>& sigma,
-               ten_t<TenT>& v_dag,
+               TenT& v_dag,
                real_t<TenT>& trunc_err,
                bond_dim_t<TenT> chi_max,
                real_t<TenT> s_min)
@@ -707,10 +707,10 @@ void trunc_svd(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void qr(context_handle_t<TenT>& ctx,
-        const ten_t<TenT>& a,
+        const TenT& a,
         order_t<TenT> num_of_bds_as_row,
-        ten_t<TenT>& q,
-        ten_t<TenT>& r)
+        TenT& q,
+        TenT& r)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -728,10 +728,10 @@ void qr(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void lq(context_handle_t<TenT>& ctx,
-        const ten_t<TenT>& a,
+        const TenT& a,
         order_t<TenT> num_of_bds_as_row,
-        ten_t<TenT>& l,
-        ten_t<TenT>& q)
+        TenT& l,
+        TenT& q)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -749,7 +749,7 @@ void lq(context_handle_t<TenT>& ctx,
         inds_T.insert(inds_T.end(), row_inds.begin(), row_inds.end());
         is_T = itensor::IndexSet(inds_T);
     }
-    itensor::ITensor aT(is_T);
+    TenT aT(is_T);
     {
         auto sh = shape<TenT>(ctx, a);
         detail::for_each_coordinate<TenT>(sh, [&](const elem_coors_t<TenT>& coors)
@@ -781,7 +781,7 @@ void lq(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void eig(context_handle_t<TenT>& ctx,
-         const ten_t<TenT>& a,
+         const TenT& a,
          order_t<TenT> num_of_bds_as_row,
          cplx_ten_t<TenT>& lambda_mat,
          cplx_ten_t<TenT>& v)
@@ -827,7 +827,7 @@ void eig(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void eigvals(context_handle_t<TenT>& ctx,
-             const ten_t<TenT>& a,
+             const TenT& a,
              order_t<TenT> num_of_bds_as_row,
              cplx_ten_t<TenT>& w)
 {
@@ -843,10 +843,10 @@ void eigvals(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void eigh(context_handle_t<TenT>& ctx,
-          const ten_t<TenT>& a,
+          const TenT& a,
           order_t<TenT> num_of_bds_as_row,
           real_ten_t<TenT>& lambda_mat,
-          ten_t<TenT>& v)
+          TenT& v)
 {
     auto mx = detail::matricize<TenT>(ctx, a, num_of_bds_as_row, "eigh");
     int n = itensor::dim(mx.cr);
@@ -911,12 +911,12 @@ void eigh(context_handle_t<TenT>& ctx,
 
 template<typename TenT>
 void eigvalsh(context_handle_t<TenT>& ctx,
-              const ten_t<TenT>& a,
+              const TenT& a,
               order_t<TenT> num_of_bds_as_row,
               real_ten_t<TenT>& w)
 {
     real_ten_t<TenT> lambda_mat;
-    ten_t<TenT> v;
+    TenT v;
     eigh<TenT>(ctx, a, num_of_bds_as_row, lambda_mat, v);
     auto is = itensor::inds(lambda_mat);
     bond_dim_t<TenT> n = itensor::dim(is[0]);

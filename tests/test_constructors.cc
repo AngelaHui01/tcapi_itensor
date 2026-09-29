@@ -183,6 +183,42 @@ void test_queries()
     destroy_context(ctx);
 }
 
+// deduction test: calls with no explicit template arguments
+// (copy, move, clear, order, shape, size)
+void test_no_template_args()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    auto a = zeros<ItensorReal>(ctx, shape_t<ItensorReal>{3, 4});
+    set_elem<ItensorReal>(ctx, a, {1, 1}, 7.0);
+
+    // copy — TenT deduced from argument
+    auto b = copy(ctx, a);
+    CHECK(tc_test::at<ItensorReal>(ctx, b, {1, 1}) == 7.0);
+
+    // order — TenT deduced from argument
+    CHECK(order(ctx, a) == 2);
+    CHECK(order(ctx, b) == 2);
+
+    // shape — TenT deduced from argument
+    auto sh = shape(ctx, a);
+    CHECK(sh[0] == 3 && sh[1] == 4);
+
+    // size — TenT deduced from argument
+    CHECK(size(ctx, a) == 12);
+
+    // move — TenT deduced from argument
+    auto c = move(ctx, b);
+    CHECK(tc_test::at<ItensorReal>(ctx, c, {1, 1}) == 7.0);
+    CHECK(order(ctx, b) == 0);
+
+    // clear — TenT deduced from argument
+    clear(ctx, c);
+    CHECK(order(ctx, c) == 0);
+
+    destroy_context(ctx);
+}
+
 int main()
 {
     tc_test::run_test("test_allocate", test_allocate);
@@ -193,6 +229,7 @@ int main()
     tc_test::run_test("test_copy", test_copy);
     tc_test::run_test("test_assign_from_range", test_assign_from_range);
     tc_test::run_test("test_queries", test_queries);
+    tc_test::run_test("test_no_template_args", test_no_template_args);
 
     std::printf("%d checks, %d failures\n", tc_test::g_checks, tc_test::g_failures);
     return tc_test::g_failures == 0 ? 0 : 1;

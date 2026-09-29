@@ -12,7 +12,7 @@
 namespace {
 
 using TenT = tcapi::ItensorReal;
-using Tensor = tcapi::ten_t<TenT>;
+using Tensor = TenT;
 using Context = tcapi::context_handle_t<TenT>;
 
 double exact_tfim_energy_per_site(double J, double g, long num_points = 200001)

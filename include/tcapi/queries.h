@@ -9,14 +9,14 @@
 namespace tcapi {
 
 template<typename TenT>
-order_t<TenT> order(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+order_t<TenT> order(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     return itensor::order(a);
 }
 
 template<typename TenT>
-shape_t<TenT> shape(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+shape_t<TenT> shape(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     shape_t<TenT> dims;
@@ -25,7 +25,7 @@ shape_t<TenT> shape(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 }
 
 template<typename TenT>
-ten_size_t<TenT> size(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+ten_size_t<TenT> size(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     ten_size_t<TenT> n = 1;
@@ -34,7 +34,7 @@ ten_size_t<TenT> size(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 }
 
 template<typename TenT>
-std::size_t size_bytes(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+std::size_t size_bytes(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     return static_cast<std::size_t>(size<TenT>(ctx, a)) * sizeof(elem_t<TenT>);
@@ -42,7 +42,7 @@ std::size_t size_bytes(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 
 template<typename TenT>
 elem_t<TenT> get_elem(context_handle_t<TenT>& ctx,
-                      const ten_t<TenT>& a,
+                      const TenT& a,
                       const elem_coors_t<TenT>& coors)
 {
     detail::ensure_active<TenT>(ctx);

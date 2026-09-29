@@ -32,13 +32,24 @@ struct ItensorContext
 template<typename TenT>
 struct tensor_traits;
 
-struct ItensorReal;
-struct ItensorCplx;
+struct ItensorReal : itensor::ITensor
+{
+    using itensor::ITensor::ITensor;
+    ItensorReal(const itensor::ITensor& t) : itensor::ITensor(t) {}
+    ItensorReal(itensor::ITensor&& t) : itensor::ITensor(std::move(t)) {}
+};
+
+struct ItensorCplx : itensor::ITensor
+{
+    using itensor::ITensor::ITensor;
+    ItensorCplx(const itensor::ITensor& t) : itensor::ITensor(t) {}
+    ItensorCplx(itensor::ITensor&& t) : itensor::ITensor(std::move(t)) {}
+};
 
 template<>
 struct tensor_traits<ItensorReal>
 {
-    using ten_t            = itensor::ITensor;
+    using ten_t            = ItensorReal;
     using order_t          = int;
     using bond_dim_t       = long;
     using bond_idx_t       = int;
@@ -58,7 +69,7 @@ struct tensor_traits<ItensorReal>
 template<>
 struct tensor_traits<ItensorCplx>
 {
-    using ten_t            = itensor::ITensor;
+    using ten_t            = ItensorCplx;
     using order_t          = int;
     using bond_dim_t       = long;
     using bond_idx_t       = int;
@@ -75,7 +86,7 @@ struct tensor_traits<ItensorCplx>
     using context_handle_t = ItensorContext;
 };
 
-template<typename TenT> using ten_t           = typename tensor_traits<TenT>::ten_t;
+template<typename TenT> using ten_t = TenT;
 template<typename TenT> using order_t          = typename tensor_traits<TenT>::order_t;
 template<typename TenT> using shape_t          = typename tensor_traits<TenT>::shape_t;
 template<typename TenT> using bond_dim_t       = typename tensor_traits<TenT>::bond_dim_t;

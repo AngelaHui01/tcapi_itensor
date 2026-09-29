@@ -38,7 +38,7 @@ inline bool shape_equals(ItensorContext& ctx, const itensor::ITensor& t,
 // logical element access
 template<typename TenT>
 inline elem_t<TenT> at(context_handle_t<TenT>& ctx,
-                       const ten_t<TenT>& t,
+                       const TenT& t,
                        std::initializer_list<long> c)
 {
     return get_elem<TenT>(ctx, t, elem_coors_t<TenT>(c.begin(), c.end()));
@@ -58,7 +58,7 @@ inline bool approx(std::complex<double> a, std::complex<double> b, double tol = 
 // all-element relative/absolute tolerance check (shape must match)
 template<typename TenT>
 inline bool all_close(context_handle_t<TenT>& ctx,
-                      const ten_t<TenT>& a, const ten_t<TenT>& b,
+                      const TenT& a, const TenT& b,
                       double rtol = 1e-7, double atol = 1e-12)
 {
     auto sa = shape<TenT>(ctx, a);
@@ -76,7 +76,7 @@ inline bool all_close(context_handle_t<TenT>& ctx,
 
 // Frobenius norm and max-abs helpers
 template<typename TenT>
-inline double frob(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
+inline double frob(context_handle_t<TenT>& ctx, const TenT& t)
 {
     auto sh = shape<TenT>(ctx, t);
     double s = 0;
@@ -89,7 +89,7 @@ inline double frob(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 }
 
 template<typename TenT>
-inline double max_abs(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
+inline double max_abs(context_handle_t<TenT>& ctx, const TenT& t)
 {
     auto sh = shape<TenT>(ctx, t);
     double m = 0;
@@ -103,10 +103,10 @@ inline double max_abs(context_handle_t<TenT>& ctx, const ten_t<TenT>& t)
 // SVD reconstruction residual ||a - u*s*vdag|| (Frobenius)
 template<typename TenT>
 inline double svd_residual(context_handle_t<TenT>& ctx,
-                           const ten_t<TenT>& a,
-                           const ten_t<TenT>& u,
-                           const ten_t<TenT>& s,
-                           const ten_t<TenT>& vdag)
+                           const TenT& a,
+                           const TenT& u,
+                           const TenT& s,
+                           const TenT& vdag)
 {
     auto recon = contract<TenT>(ctx, contract<TenT>(ctx, u, s), vdag);
     auto sh = shape<TenT>(ctx, a);

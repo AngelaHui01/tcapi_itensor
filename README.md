@@ -124,13 +124,13 @@ int main() {
 
     // contract with explicit index labels (string or non-string);
     // the result is written into the output tensor c (c may alias a/b)
-    tcapi::ten_t<TenT> product;
+    TenT product;
     tcapi::contract<TenT>(ctx, identity, "ij", matrix, "jk", product, "ik");
     // product should be numerically close to matrix
 
     // svd writes its factors via output parameters; sigma is a real diagonal
     // tensor of singular values
-    tcapi::ten_t<TenT> u, vdag;
+    TenT u, vdag;
     tcapi::real_ten_t<TenT> sigma;
     tcapi::svd<TenT>(ctx, matrix, 1, u, sigma, vdag);
 
@@ -144,24 +144,6 @@ For tensor decompositions, `num_of_bds_as_row` controls how many leading tensor 
 ## Examples
 
 Tensor-network example applications (e.g., a TRG demo and an iTEBD demo) are planned but not yet part of this repository. When added, they will be built by the CMake project as additional executables.
-
-## Diagnostics
-
-Set `TCAPI_VERBOSE` to print runtime call diagnostics:
-
-```bash
-export TCAPI_VERBOSE=1
-./build/test_linalg
-
-export TCAPI_VERBOSE=2
-./build/trg
-```
-
-Verbose levels:
-
-- `0`: silent default
-- `1`: print TCAPI function names and compact argument summaries
-- `2`: also print measured wall-clock time per wrapped TCAPI call
 
 ## Development
 

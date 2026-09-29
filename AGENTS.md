@@ -62,8 +62,8 @@ The implementation is header-only (templates in `include/tcapi/`); there is no `
   - Live in the `tcapi` namespace.
   - Match the function names, argument order, and return types from the TCAPI spec (web specification; Appendix C of the paper).
   - Use template parameter `typename TenT` for the tensor type.
-  - Use the traits-forwarding aliases instead of spelling out `typename tensor_traits<TenT>::...`: `ten_t<TenT>`, `order_t<TenT>`, `shape_t<TenT>`, `bond_dim_t<TenT>`, `bond_idx_t<TenT>`, `bond_label_t<TenT>`, `ten_size_t<TenT>`, `elem_t<TenT>`, `elem_coor_t<TenT>`, `elem_coors_t<TenT>`, `real_t<TenT>`, `real_ten_t<TenT>`, `cplx_t<TenT>`, `cplx_ten_t<TenT>`, `context_handle_t<TenT>`.
-  - The concrete tensor type is spelled `ten_t<TenT>` (member type `tcapi::tensor_traits<TenT>::ten_t`), **not** `tent_t` or any other name.
+  - Use the traits-forwarding aliases instead of spelling out `typename tensor_traits<TenT>::...`: `TenT`, `order_t<TenT>`, `shape_t<TenT>`, `bond_dim_t<TenT>`, `bond_idx_t<TenT>`, `bond_label_t<TenT>`, `ten_size_t<TenT>`, `elem_t<TenT>`, `elem_coor_t<TenT>`, `elem_coors_t<TenT>`, `real_t<TenT>`, `real_ten_t<TenT>`, `cplx_t<TenT>`, `cplx_ten_t<TenT>`, `context_handle_t<TenT>`.
+  - The concrete tensor type is spelled `TenT` (the template parameter), **not** `tent_t` or any other name.
   - Take `context_handle_t<TenT>& ctx` as the first argument.
 - Do **not** rename functions to match ITensor's native API (e.g., do not call it `expHermitianWrapper`). The public name must be `exp`.
 - Example signature pattern:
@@ -71,7 +71,7 @@ The implementation is header-only (templates in `include/tcapi/`); there is no `
   ```cpp
   template<typename TenT>
   void exp(context_handle_t<TenT>& ctx,
-           ten_t<TenT>& inout,
+           TenT& inout,
            order_t<TenT> num_of_bds_as_row);
   ```
 
@@ -131,7 +131,7 @@ This repository is part of a broader effort to use AI agents for cross-language 
 
    Example prompt pattern:
 
-   > "Implement `tcapi::eigh` for the ITensor backend. Use the Python/NumPy implementation in `tcapi_numpy/linalg.py` and the TCAPI spec (web spec / Appendix C2e) as references. Follow the conventions in `AGENTS.md`: same function signature spelled with `ten_t<TenT>` and the traits aliases, error messages starting with 'eigh:', no doc comments, and a `test_eigh()` in `tests/test_linalg.cc` that mirrors `test_eigh` from the NumPy test suite."
+   > "Implement `tcapi::eigh` for the ITensor backend. Use the Python/NumPy implementation in `tcapi_numpy/linalg.py` and the TCAPI spec (web spec / Appendix C2e) as references. Follow the conventions in `AGENTS.md`: same function signature spelled with `TenT` and the traits aliases, error messages starting with 'eigh:', no doc comments, and a `test_eigh()` in `tests/test_linalg.cc` that mirrors `test_eigh` from the NumPy test suite."
 
 3. **Human role**
 

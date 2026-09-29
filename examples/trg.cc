@@ -9,7 +9,7 @@
 namespace {
 
 using TenT = tcapi::ItensorReal;
-using Tensor = tcapi::ten_t<TenT>;
+using Tensor = TenT;
 using Context = tcapi::context_handle_t<TenT>;
 
 struct Factors

@@ -67,7 +67,7 @@ std::vector<itensor::IndexVal> to_ivs(const itensor::IndexSet& is,
 
 template<typename TenT>
 inline elem_t<TenT>
-get_elem_impl(const ten_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs)
+get_elem_impl(const TenT& a, const std::vector<itensor::IndexVal>& ivs)
 {
     if constexpr (std::is_same_v<elem_t<TenT>, std::complex<double>>)
         return a.eltC(ivs);
@@ -77,7 +77,7 @@ get_elem_impl(const ten_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs)
 
 template<typename TenT>
 inline void
-set_elem_impl(ten_t<TenT>& a, const std::vector<itensor::IndexVal>& ivs,
+set_elem_impl(TenT& a, const std::vector<itensor::IndexVal>& ivs,
               itensor::Cplx val)
 {
     a.set(ivs, val);

@@ -34,7 +34,7 @@ std::string version()
 }
 
 template<typename TenT>
-void show(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
+void show(context_handle_t<TenT>& ctx, const TenT& a)
 {
     detail::ensure_active<TenT>(ctx);
     auto sh = shape<TenT>(ctx, a);
@@ -47,7 +47,7 @@ void show(context_handle_t<TenT>& ctx, const ten_t<TenT>& a)
 
 template<typename TenT>
 bool close(context_handle_t<TenT>& ctx,
-           const ten_t<TenT>& a, const ten_t<TenT>& b,
+           const TenT& a, const TenT& b,
            real_t<TenT> epsilon)
 {
     detail::ensure_active<TenT>(ctx);
@@ -114,7 +114,7 @@ void convert(context_handle_t<Ten1T>& ctx1, const ten_t<Ten1T>& t1,
 
 template<typename TenT, typename RandomIt, typename Func>
 void to_range(context_handle_t<TenT>& ctx,
-              const ten_t<TenT>& a, RandomIt first, Func coors2idx)
+              const TenT& a, RandomIt first, Func coors2idx)
 {
     detail::ensure_active<TenT>(ctx);
     auto sh = shape<TenT>(ctx, a);
