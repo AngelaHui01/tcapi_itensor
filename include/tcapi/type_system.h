@@ -60,9 +60,9 @@ struct tensor_traits<ItensorReal>
     using elem_coor_t      = long;
     using elem_coors_t     = List<elem_coor_t>;
     using real_t           = double;
-    using real_ten_t       = itensor::ITensor;
+    using real_ten_t       = ItensorReal;
     using cplx_t           = std::complex<double>;
-    using cplx_ten_t       = itensor::ITensor;
+    using cplx_ten_t       = ItensorCplx;
     using context_handle_t = ItensorContext;
 };
 
@@ -80,9 +80,9 @@ struct tensor_traits<ItensorCplx>
     using elem_coor_t      = long;
     using elem_coors_t     = List<elem_coor_t>;
     using real_t           = double;
-    using real_ten_t       = itensor::ITensor;
+    using real_ten_t       = ItensorReal;
     using cplx_t           = std::complex<double>;
-    using cplx_ten_t       = itensor::ITensor;
+    using cplx_ten_t       = ItensorCplx;
     using context_handle_t = ItensorContext;
 };
 

@@ -134,7 +134,7 @@ inline std::vector<double> sing_vals(context_handle_t<TenT>& ctx,
 
 // eigenvalues from a diagonal matrix tensor (complex storage)
 inline std::vector<std::complex<double>>
-diag_elements_c(ItensorContext& ctx, const itensor::ITensor& L)
+diag_elements_c(ItensorContext& ctx, const ItensorCplx& L)
 {
     std::vector<std::complex<double>> out;
     auto is = itensor::inds(L);

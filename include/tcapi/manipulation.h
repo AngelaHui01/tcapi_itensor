@@ -523,7 +523,7 @@ real_ten_t<TenT> real(context_handle_t<TenT>& ctx, const TenT& in)
 
     std::vector<itensor::Index> real_inds;
     for(auto const& I : is_in) real_inds.push_back(I);
-    TenT out{itensor::IndexSet(real_inds)};
+    real_ten_t<TenT> out{itensor::IndexSet(real_inds)};
 
     detail::for_each_coordinate<TenT>(sh, [&](const elem_coors_t<TenT>& coors)
     {
@@ -533,7 +533,7 @@ real_ten_t<TenT> real(context_handle_t<TenT>& ctx, const TenT& in)
             rv = el.real();
         else
             rv = static_cast<double>(el);
-        detail::set_elem_impl<TenT>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), rv);
+        detail::set_elem_impl<real_ten_t<TenT>>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), rv);
     });
     return out;
 }
@@ -547,14 +547,14 @@ real_ten_t<TenT> imag(context_handle_t<TenT>& ctx, const TenT& in)
 
     std::vector<itensor::Index> real_inds;
     for(auto const& I : is_in) real_inds.push_back(I);
-    TenT out{itensor::IndexSet(real_inds)};
+    real_ten_t<TenT> out{itensor::IndexSet(real_inds)};
 
     detail::for_each_coordinate<TenT>(sh, [&](const elem_coors_t<TenT>& coors)
     {
         double iv = 0.0;
         if constexpr (std::is_same_v<elem_t<TenT>, std::complex<double>>)
             iv = get_elem<TenT>(ctx, in, coors).imag();
-        detail::set_elem_impl<TenT>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), iv);
+        detail::set_elem_impl<real_ten_t<TenT>>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), iv);
     });
     return out;
 }
@@ -572,12 +572,12 @@ cplx_ten_t<TenT> to_cplx(context_handle_t<TenT>& ctx, const TenT& in)
 
         std::vector<itensor::Index> inds_vec;
         for(auto const& I : is_in) inds_vec.push_back(I);
-        TenT out{itensor::IndexSet(inds_vec)};
+        cplx_ten_t<TenT> out{itensor::IndexSet(inds_vec)};
 
         detail::for_each_coordinate<TenT>(sh, [&](const elem_coors_t<TenT>& coors)
         {
             std::complex<double> v(static_cast<double>(get_elem<TenT>(ctx, in, coors)), 0.0);
-            detail::set_elem_impl<TenT>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), v);
+            detail::set_elem_impl<cplx_ten_t<TenT>>(out, detail::to_ivs<TenT>(itensor::inds(out), coors), v);
         });
         return out;
     }

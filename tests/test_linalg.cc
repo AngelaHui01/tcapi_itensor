@@ -4,6 +4,11 @@
 
 using namespace tcapi;
 
+static_assert(std::is_same_v<real_ten_t<ItensorReal>, ItensorReal>,
+    "real_ten_t<ItensorReal> must be ItensorReal");
+static_assert(std::is_same_v<real_ten_t<ItensorCplx>, ItensorReal>,
+    "real_ten_t<ItensorCplx> must be ItensorReal");
+
 static ten_t<ItensorReal> rnd(ItensorContext& ctx,
                               const shape_t<ItensorReal>& shape,
                               std::mt19937& engine)
