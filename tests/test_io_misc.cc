@@ -77,12 +77,26 @@ void test_convert()
     CHECK_SHAPE(ctx, back, 2);
     CHECK(tc_test::at<ItensorReal>(ctx, back, {0}) == 3.0);
 
-    // same-kind conversion is a deep copy
-    auto r2 = allocate<ItensorReal>(ctx, shape_t<ItensorReal>{3});
-    set_elem<ItensorReal>(ctx, r2, {2}, 7.0);
-    ten_t<ItensorReal> rcopy;
-    convert<ItensorReal, ItensorReal>(ctx, r2, ctx, rcopy);
-    CHECK(tc_test::at<ItensorReal>(ctx, rcopy, {2}) == 7.0);
+    // same-kind conversion is an independent deep copy
+    {
+        auto r2 = allocate<ItensorReal>(ctx, shape_t<ItensorReal>{3});
+        set_elem<ItensorReal>(ctx, r2, {2}, 7.0);
+        ten_t<ItensorReal> rcopy;
+        convert<ItensorReal, ItensorReal>(ctx, r2, ctx, rcopy);
+        CHECK(tc_test::at<ItensorReal>(ctx, rcopy, {2}) == 7.0);
+        // mutate the copy, original unchanged
+        set_elem<ItensorReal>(ctx, rcopy, {0}, 99.0);
+        CHECK(tc_test::at<ItensorReal>(ctx, r2, {0}) == 0.0);
+    }
+
+    // complex same-kind conversion is a deep copy
+    {
+        auto orig = fill<ItensorCplx>(ctx, shape_t<ItensorCplx>{2}, std::complex<double>(1, 2));
+        ten_t<ItensorCplx> copy;
+        convert<ItensorCplx, ItensorCplx>(ctx, orig, ctx, copy);
+        set_elem<ItensorCplx>(ctx, copy, {1}, std::complex<double>(9, 9));
+        CHECK(tc_test::at<ItensorCplx>(ctx, orig, {1}) == std::complex<double>(1, 2));
+    }
 
     destroy_context(ctx);
 }
