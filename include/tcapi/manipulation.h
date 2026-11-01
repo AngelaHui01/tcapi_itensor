@@ -269,6 +269,15 @@ TenT concatenate(context_handle_t<TenT>& ctx,
     return out;
 }
 
+// deduction-forwarding overload for braced-init-list calls
+template<typename TenT>
+TenT concatenate(context_handle_t<TenT>& ctx,
+                         std::initializer_list<CRef<TenT>> ins,
+                         bond_idx_t<TenT> concat_bdidx)
+{
+    return concatenate<TenT>(ctx, List<CRef<TenT>>(ins), concat_bdidx);
+}
+
 template<typename TenT>
 TenT stack(context_handle_t<TenT>& ctx,
                    const List<CRef<TenT>>& ins,
@@ -311,6 +320,15 @@ TenT stack(context_handle_t<TenT>& ctx,
         });
     }
     return out;
+}
+
+// deduction-forwarding overload for braced-init-list calls
+template<typename TenT>
+TenT stack(context_handle_t<TenT>& ctx,
+                   std::initializer_list<CRef<TenT>> ins,
+                   bond_idx_t<TenT> stack_bdidx)
+{
+    return stack<TenT>(ctx, List<CRef<TenT>>(ins), stack_bdidx);
 }
 
 namespace detail {

@@ -181,6 +181,58 @@ void test_linear_combine()
     destroy_context(ctx);
 }
 
+// linear_combine: single-arg overload with 1, 2, 3 inputs;
+// shape-mismatch throws
+void test_linear_combine_variadic()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // 1 input — returns a copy
+    {
+        auto a = fill<ItensorReal>(ctx, {2, 2}, 3.0);
+        auto r = linear_combine(ctx, {std::cref(a)});
+        CHECK(tc_test::at<ItensorReal>(ctx, r, {0, 0}) == 3.0);
+        // deep: set on r does not affect a
+        set_elem<ItensorReal>(ctx, r, {0, 0}, 9.0);
+        CHECK(tc_test::at<ItensorReal>(ctx, a, {0, 0}) == 3.0);
+    }
+
+    // 2 inputs — sum
+    {
+        auto a = fill<ItensorReal>(ctx, {2}, 1.0);
+        auto b = fill<ItensorReal>(ctx, {2}, 2.0);
+        auto r = linear_combine(ctx, {std::cref(a), std::cref(b)});
+        CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, r, {0}), 3.0));
+    }
+
+    // 3 inputs — sum
+    {
+        auto a = fill<ItensorReal>(ctx, {3}, 1.0);
+        auto b = fill<ItensorReal>(ctx, {3}, 2.0);
+        auto c = fill<ItensorReal>(ctx, {3}, 3.0);
+        auto r = linear_combine(ctx, {std::cref(a), std::cref(b), std::cref(c)});
+        CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, r, {1}), 6.0));
+    }
+
+    // mismatched order throws
+    {
+        auto x = fill<ItensorReal>(ctx, {2, 3}, 1.0);
+        auto y = fill<ItensorReal>(ctx, {3}, 2.0);  // order 1 vs order 2
+        CHECK_THROW(std::invalid_argument,
+                    linear_combine(ctx, {std::cref(x), std::cref(y)}));
+    }
+
+    // coefs count mismatch throws
+    {
+        auto a = fill<ItensorCplx>(ctx, {2}, std::complex<double>(1, 1));
+        auto b = fill<ItensorCplx>(ctx, {2}, std::complex<double>(2, 2));
+        CHECK_THROW(std::invalid_argument,
+                    linear_combine(ctx, {std::cref(a), std::cref(b)}, {std::complex<double>(1,0)}));
+    }
+
+    destroy_context(ctx);
+}
+
 // inverse: matrix product gives identity; singular throws (checked in errors)
 void test_inverse()
 {
@@ -794,6 +846,7 @@ int main()
     tc_test::run_test("test_normalize", test_normalize);
     tc_test::run_test("test_trace", test_trace);
     tc_test::run_test("test_linear_combine", test_linear_combine);
+    tc_test::run_test("test_linear_combine_variadic", test_linear_combine_variadic);
     tc_test::run_test("test_inverse", test_inverse);
     tc_test::run_test("test_exp", test_exp);
     tc_test::run_test("test_no_mutation_identity_preserved", test_no_mutation_identity_preserved);

@@ -351,6 +351,22 @@ TenT linear_combine(context_handle_t<TenT>& ctx,
     return linear_combine<TenT>(ctx, ins, coefs);
 }
 
+// deduction-forwarding overloads for braced-init-list calls
+template<typename TenT>
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            std::initializer_list<CRef<TenT>> ins,
+                            const List<elem_t<TenT>>& coefs)
+{
+    return linear_combine<TenT>(ctx, List<CRef<TenT>>(ins), coefs);
+}
+
+template<typename TenT>
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            std::initializer_list<CRef<TenT>> ins)
+{
+    return linear_combine<TenT>(ctx, List<CRef<TenT>>(ins)); 
+}
+
 namespace detail {
 
 template<typename TenT>
