@@ -102,6 +102,8 @@ template<typename TenT> using cplx_t           = typename tensor_traits<TenT>::c
 template<typename TenT> using cplx_ten_t       = typename tensor_traits<TenT>::cplx_ten_t;
 template<typename TenT> using context_handle_t = typename tensor_traits<TenT>::context_handle_t;
 
+using supported_ten_types_t = std::tuple<ItensorReal, ItensorCplx>;
+
 namespace detail {
 
 template<typename TenT>

@@ -5,6 +5,12 @@
 
 using namespace tcapi;
 
+// Compile-time: supported_ten_types_t lists every type with valid traits
+static_assert(!std::is_same_v<typename tensor_traits<ItensorReal>::elem_t, void>,
+              "ItensorReal must have valid tensor_traits");
+static_assert(!std::is_same_v<typename tensor_traits<ItensorCplx>::elem_t, void>,
+              "ItensorCplx must have valid tensor_traits");
+
 // allocate: shape/order, size, size_bytes, scalar (0-th order)
 void test_allocate()
 {
@@ -219,6 +225,41 @@ void test_no_template_args()
     destroy_context(ctx);
 }
 
+// CRef deduction: initializer_list overloads deduce TenT from cref elements
+void test_cref_deduction()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    auto a = fill<ItensorReal>(ctx, {2, 3}, 1.0);
+    auto b = fill<ItensorReal>(ctx, {2, 3}, 2.0);
+    auto c = fill<ItensorReal>(ctx, {2, 3}, 3.0);
+
+    // concatenate deduced from braced cref list — 3×{2,3} on axis 1 → {2,9}
+    auto d = concatenate(ctx, {std::cref(a), std::cref(b), std::cref(c)}, 1);
+    CHECK_SHAPE(ctx, d, 2, 9);
+
+    // stack deduced from braced cref list — 2×{2,3} on axis 0 → {2,2,3}
+    auto s = stack(ctx, {std::cref(a), std::cref(b)}, 0);
+    CHECK_SHAPE(ctx, s, 2, 2, 3);
+
+    // explicit TenT still works with braced list
+    auto d2 = concatenate<ItensorReal>(ctx, {std::cref(a), std::cref(b)}, 1);
+    CHECK_SHAPE(ctx, d2, 2, 6);
+
+    // pre-built List<CRef<TenT>> variable
+    List<CRef<ItensorReal>> ins_list = {std::cref(a), std::cref(b), std::cref(c)};
+    auto d3 = concatenate(ctx, ins_list, 1);
+    CHECK_SHAPE(ctx, d3, 2, 9);
+
+    // complex variant — 2×{2} on axis 0 → {4}
+    auto ca = fill<ItensorCplx>(ctx, {2}, std::complex<double>(1, 0));
+    auto cb = fill<ItensorCplx>(ctx, {2}, std::complex<double>(2, 0));
+    auto cd = concatenate(ctx, {std::cref(ca), std::cref(cb)}, 0);
+    CHECK_SHAPE(ctx, cd, 4);
+
+    destroy_context(ctx);
+}
+
 int main()
 {
     tc_test::run_test("test_allocate", test_allocate);
@@ -230,6 +271,7 @@ int main()
     tc_test::run_test("test_assign_from_range", test_assign_from_range);
     tc_test::run_test("test_queries", test_queries);
     tc_test::run_test("test_no_template_args", test_no_template_args);
+    tc_test::run_test("test_cref_deduction", test_cref_deduction);
 
     std::printf("%d checks, %d failures\n", tc_test::g_checks, tc_test::g_failures);
     return tc_test::g_failures == 0 ? 0 : 1;

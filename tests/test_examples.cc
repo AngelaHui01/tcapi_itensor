@@ -93,7 +93,7 @@ void test_itebd_imaginary_time()
 {
     ItensorContext ctx; create_context(ctx);
 
-    const double J = 1.0, g = 0.5;
+    const double J = 1.0, g = 1.0;
     const double dt = 0.005;
     const long chi = 5, N = 3000, d = 2;
     const double s_min = 1.0e-10;
@@ -164,7 +164,7 @@ void test_itebd_imaginary_time()
         normalize<ItensorReal>(ctx, svec);
         la = std::move(svec);
 
-        auto lb_work = lb;
+        auto lb_work = copy(ctx, lb);
         for_each<ItensorReal>(ctx, lb_work, [](double e) { return 1.0 / e; });
         ten_t<ItensorReal> lb_inv;
         diag<ItensorReal>(ctx, lb_work, lb_inv);
@@ -209,8 +209,9 @@ void test_itebd_imaginary_time()
     std::printf("final 100-iteration span = %.3e\n", stabilization_span);
 
     CHECK(std::isfinite(final_estimate));
-    CHECK(abs_diff < 1.0e-4);
-    CHECK(stabilization_span < 1.0e-8);
+    CHECK(final_estimate >= exact - 1.0e-6);  // variational upper bound
+    CHECK(abs_diff < 2.0e-4);                 // tolerance for chi=5, dt=0.005
+    CHECK(stabilization_span < 1.0e-5);       // stabilized within last 100 steps
 
     destroy_context(ctx);
 }

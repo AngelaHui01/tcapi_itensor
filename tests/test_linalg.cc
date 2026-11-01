@@ -181,6 +181,58 @@ void test_linear_combine()
     destroy_context(ctx);
 }
 
+// linear_combine: single-arg overload with 1, 2, 3 inputs;
+// shape-mismatch throws
+void test_linear_combine_variadic()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // 1 input — returns a copy
+    {
+        auto a = fill<ItensorReal>(ctx, {2, 2}, 3.0);
+        auto r = linear_combine(ctx, {std::cref(a)});
+        CHECK(tc_test::at<ItensorReal>(ctx, r, {0, 0}) == 3.0);
+        // deep: set on r does not affect a
+        set_elem<ItensorReal>(ctx, r, {0, 0}, 9.0);
+        CHECK(tc_test::at<ItensorReal>(ctx, a, {0, 0}) == 3.0);
+    }
+
+    // 2 inputs — sum
+    {
+        auto a = fill<ItensorReal>(ctx, {2}, 1.0);
+        auto b = fill<ItensorReal>(ctx, {2}, 2.0);
+        auto r = linear_combine(ctx, {std::cref(a), std::cref(b)});
+        CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, r, {0}), 3.0));
+    }
+
+    // 3 inputs — sum
+    {
+        auto a = fill<ItensorReal>(ctx, {3}, 1.0);
+        auto b = fill<ItensorReal>(ctx, {3}, 2.0);
+        auto c = fill<ItensorReal>(ctx, {3}, 3.0);
+        auto r = linear_combine(ctx, {std::cref(a), std::cref(b), std::cref(c)});
+        CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, r, {1}), 6.0));
+    }
+
+    // mismatched order throws
+    {
+        auto x = fill<ItensorReal>(ctx, {2, 3}, 1.0);
+        auto y = fill<ItensorReal>(ctx, {3}, 2.0);  // order 1 vs order 2
+        CHECK_THROW(std::invalid_argument,
+                    linear_combine(ctx, {std::cref(x), std::cref(y)}));
+    }
+
+    // coefs count mismatch throws
+    {
+        auto a = fill<ItensorCplx>(ctx, {2}, std::complex<double>(1, 1));
+        auto b = fill<ItensorCplx>(ctx, {2}, std::complex<double>(2, 2));
+        CHECK_THROW(std::invalid_argument,
+                    linear_combine(ctx, {std::cref(a), std::cref(b)}, {std::complex<double>(1,0)}));
+    }
+
+    destroy_context(ctx);
+}
+
 // inverse: matrix product gives identity; singular throws (checked in errors)
 void test_inverse()
 {
@@ -313,7 +365,7 @@ void test_exp()
     const ten_t<ItensorReal>& Pc = P;
     ten_t<ItensorReal> EP, EM;
     exp<ItensorReal>(ctx, Pc, 1, EP);
-    auto Pm = P;
+    auto Pm = copy(ctx, P);
     for(long i = 0; i < 3; ++i)
         for(long j = 0; j < 3; ++j)
             set_elem<ItensorReal>(ctx, Pm, {i, j}, -tc_test::at<ItensorReal>(ctx, Pm, {i, j}));
@@ -427,6 +479,18 @@ void test_trunc_svd()
         CHECK_SHAPE(ctx, sc, 2, 2);
         double res = tc_test::svd_residual<ItensorCplx>(ctx, ac, uc, sc, vc);
         CHECK(res >= 0.0);
+    }
+
+    // spec example: full overload with chi_min and target_trunc_err
+    {
+        auto big = rnd(ctx, {3, 4, 5, 6}, engine);
+        ten_t<ItensorReal> ub, vb;
+        real_ten_t<ItensorReal> sb;
+        real_t<ItensorReal> eb;
+        trunc_svd<ItensorReal>(ctx, big, 2, ub, sb, vb, eb, 6, 1e-12, 3, 1e-2);
+        auto ss = shape<ItensorReal>(ctx, sb);
+        CHECK(ss[0] >= 3);
+        CHECK(ss[0] <= 6);
     }
 
     destroy_context(ctx);
@@ -794,6 +858,7 @@ int main()
     tc_test::run_test("test_normalize", test_normalize);
     tc_test::run_test("test_trace", test_trace);
     tc_test::run_test("test_linear_combine", test_linear_combine);
+    tc_test::run_test("test_linear_combine_variadic", test_linear_combine_variadic);
     tc_test::run_test("test_inverse", test_inverse);
     tc_test::run_test("test_exp", test_exp);
     tc_test::run_test("test_no_mutation_identity_preserved", test_no_mutation_identity_preserved);

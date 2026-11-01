@@ -25,6 +25,11 @@ TenT allocate(context_handle_t<TenT>& ctx, const shape_t<TenT>& shape)
 
         detail::set_elem_impl<TenT>(A, ivs, elem_t<TenT>{0});
     }
+    else
+    {
+        // zeroth-order: set scalar to zero
+        A.set(elem_t<TenT>{0});
+    }
     return A;
 }
 

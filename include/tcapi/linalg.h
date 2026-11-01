@@ -163,6 +163,8 @@ void diag(context_handle_t<TenT>& ctx, const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto ord = order<TenT>(ctx, in);
+    if(ord == 0)
+        throw std::invalid_argument("diag: zeroth-order input has no bonds to extract a diagonal from.");
     auto in_shape = shape<TenT>(ctx, in);
 
     if(ord == 1)
@@ -234,7 +236,7 @@ real_t<TenT> normalize(context_handle_t<TenT>& ctx,
                        const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
-    out = in;
+    out = copy<TenT>(ctx, in);
     return normalize<TenT>(ctx, out);
 }
 
@@ -336,7 +338,7 @@ TenT linear_combine(context_handle_t<TenT>& ctx,
         if(k_inds.size() != ref_inds.size())
             throw std::invalid_argument("linear_combine: shape mismatch among inputs.");
 
-        auto term = ins[k].get();
+        auto term = copy<TenT>(ctx, ins[k].get());
         term = itensor::replaceInds(term, k_inds, ref_inds);
         out += coefs[k] * term;
     }
@@ -349,6 +351,22 @@ TenT linear_combine(context_handle_t<TenT>& ctx,
 {
     List<elem_t<TenT>> coefs(ins.size(), elem_t<TenT>{1});
     return linear_combine<TenT>(ctx, ins, coefs);
+}
+
+// deduction-forwarding overloads for braced-init-list calls
+template<typename TenT>
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            std::initializer_list<CRef<TenT>> ins,
+                            const List<elem_t<TenT>>& coefs)
+{
+    return linear_combine<TenT>(ctx, List<CRef<TenT>>(ins), coefs);
+}
+
+template<typename TenT>
+TenT linear_combine(context_handle_t<TenT>& ctx,
+                            std::initializer_list<CRef<TenT>> ins)
+{
+    return linear_combine<TenT>(ctx, List<CRef<TenT>>(ins)); 
 }
 
 namespace detail {
@@ -618,10 +636,10 @@ void trunc_svd(context_handle_t<TenT>& ctx,
                real_ten_t<TenT>& sigma,
                TenT& v_dag,
                real_t<TenT>& trunc_err,
-               bond_dim_t<TenT> chi_min,
                bond_dim_t<TenT> chi_max,
-               real_t<TenT> target_trunc_err,
-               real_t<TenT> s_min)
+               real_t<TenT> s_min,
+               bond_dim_t<TenT> chi_min,
+               real_t<TenT> target_trunc_err)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -702,7 +720,7 @@ void trunc_svd(context_handle_t<TenT>& ctx,
                real_t<TenT> s_min)
 {
     trunc_svd<TenT>(ctx, a, num_of_bds_as_row, u, sigma, v_dag, trunc_err,
-                    0, chi_max, real_t<TenT>{-1}, s_min);
+                    chi_max, s_min, 0, real_t<TenT>{-1});
 }
 
 template<typename TenT>
