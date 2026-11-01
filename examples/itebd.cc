@@ -1,6 +1,7 @@
 #include <tcapi/tcapi.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <exception>
 #include <iostream>
@@ -85,11 +86,11 @@ std::vector<double> itebd_imaginary_time(Context& ctx,
     std::uniform_real_distribution<double> dis(-1.0, 1.0);
     auto gen = [&] { return dis(rng); };
 
-    Tensor gamma[2] = {
+    std::array<Tensor, 2> gamma = {
         tcapi::random<TenT>(ctx, {chi, 2, chi}, gen),
         tcapi::random<TenT>(ctx, {chi, 2, chi}, gen),
     };
-    Tensor lam[2] = {
+    std::array<Tensor, 2> lam = {
         tcapi::random<TenT>(ctx, {chi}, gen),
         tcapi::random<TenT>(ctx, {chi}, gen),
     };
@@ -153,7 +154,7 @@ int main(int argc, char* argv[])
     try
     {
         const double J = argc > 1 ? std::stod(argv[1]) : 1.0;
-        const double g = argc > 2 ? std::stod(argv[2]) : 0.5;
+        const double g = argc > 2 ? std::stod(argv[2]) : 1.0;
         const double dt = argc > 3 ? std::stod(argv[3]) : 0.005;
         const long chi = argc > 4 ? std::stol(argv[4]) : 5;
         const long N = argc > 5 ? std::stol(argv[5]) : 3000;
