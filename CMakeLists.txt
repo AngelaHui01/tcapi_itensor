@@ -39,7 +39,7 @@ add_library(tcapi INTERFACE)
 target_include_directories(tcapi INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(tcapi INTERFACE itensor)
 target_compile_options(tcapi INTERFACE
-  -Wall -Wno-unknown-pragmas -Wno-unused-variable)
+  -Wall -Wextra -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-parameter)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(tcapi INTERFACE -Wno-gcc-compat)
 endif()
