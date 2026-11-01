@@ -80,7 +80,23 @@ inline void
 set_elem_impl(TenT& a, const std::vector<itensor::IndexVal>& ivs,
               itensor::Cplx val)
 {
-    a.set(ivs, val);
+    try
+    {
+        if(ivs.empty())
+            a.set(val);
+        else
+            a.set(ivs, val);
+    }
+    catch(itensor::ITError const&)
+    {
+        // Densify if storage type doesn't support SetElt (e.g. DiagReal)
+        // by making a dense copy via multiply by 1, then retry
+        a = itensor::toDense(a);
+        if(ivs.empty())
+            a.set(val);
+        else
+            a.set(ivs, val);
+    }
 }
 
 } // namespace detail

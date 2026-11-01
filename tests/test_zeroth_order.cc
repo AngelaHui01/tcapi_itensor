@@ -42,6 +42,11 @@ void test_get_set_elem_zero_order()
 {
     ItensorContext ctx; create_context(ctx);
 
+    {
+        auto s = zeros<ItensorReal>(ctx, {});
+        (void)s;
+    }
+
     auto s = zeros<ItensorReal>(ctx, {});
     set_elem<ItensorReal>(ctx, s, {}, 7.0);
     CHECK(tc_test::at<ItensorReal>(ctx, s, {}) == 7.0);
@@ -231,6 +236,86 @@ void test_bond_ops_zero_order_throw()
     destroy_context(ctx);
 }
 
+// DiagITensor: eye and svd sigma must work with all routines
+void test_diag_tensors()
+{
+    ItensorContext ctx; create_context(ctx);
+
+    // eye returns a diagITensor (primed pair)
+    auto e = eye<ItensorReal>(ctx, 4);
+
+    // get_elem: off-diagonal == 0
+    CHECK(tc_test::at<ItensorReal>(ctx, e, {1, 1}) == 1.0);
+    CHECK(tc_test::at<ItensorReal>(ctx, e, {0, 1}) == 0.0);
+    CHECK(tc_test::at<ItensorReal>(ctx, e, {3, 2}) == 0.0);
+
+    // size == N*N
+    CHECK(size<ItensorReal>(ctx, e) == 16);
+
+    // set_elem off-diagonal must stick (forces densify)
+    set_elem<ItensorReal>(ctx, e, {0, 2}, 5.0);
+    CHECK(tc_test::at<ItensorReal>(ctx, e, {0, 2}) == 5.0);
+    CHECK(tc_test::at<ItensorReal>(ctx, e, {1, 1}) == 1.0);
+
+    // transpose on eye (now dense after set_elem above)
+    ten_t<ItensorReal> et;
+    transpose<ItensorReal>(ctx, e, {1, 0}, et);
+    CHECK(tc_test::at<ItensorReal>(ctx, et, {0, 0}) == 1.0);
+    CHECK(tc_test::at<ItensorReal>(ctx, et, {2, 0}) == 5.0);
+
+    // reshape on eye
+    ten_t<ItensorReal> er;
+    reshape<ItensorReal>(ctx, e, {16}, er);
+    CHECK(size<ItensorReal>(ctx, er) == 16);
+
+    // contract with fresh eye preserves vector (use fresh eye before densification)
+    auto e_fresh = eye<ItensorReal>(ctx, 4);
+    auto a = fill<ItensorReal>(ctx, {4}, 2.0);
+    ten_t<ItensorReal> c;
+    contract<ItensorReal>(ctx, e_fresh, "ij", a, "j", c, "i");
+    CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, c, {0}), 2.0));
+    CHECK(tc_test::approx(tc_test::at<ItensorReal>(ctx, c, {1}), 2.0));
+
+    // SVD sigma
+    std::mt19937 engine(7);
+    std::uniform_real_distribution<double> dis(0.0, 1.0);
+    auto gen = [&]{ return dis(engine); };
+    auto big = random<ItensorReal>(ctx, {3, 4, 12}, gen);
+    ten_t<ItensorReal> u, vdag;
+    real_ten_t<ItensorReal> sigma;
+    real_t<ItensorReal> err;
+    trunc_svd<ItensorReal>(ctx, big, 2, u, sigma, vdag, err, 12, 0.0);
+
+    // get_elem on sigma (diagITensor)
+    CHECK(tc_test::at<ItensorReal>(ctx, sigma, {0, 1}) == 0.0);
+    CHECK(size<ItensorReal>(ctx, sigma) == 144);
+
+    // set_elem off-diagonal on sigma
+    set_elem<ItensorReal>(ctx, sigma, {1, 0}, 3.5);
+    CHECK(tc_test::at<ItensorReal>(ctx, sigma, {1, 0}) == 3.5);
+
+    // for_each on sigma counts all N^2 elements
+    long count = 0;
+    for_each<ItensorReal>(ctx, sigma, [&](double) { ++count; });
+    CHECK(count == 144);
+
+    // save/load round-trip of diagonal tensor
+    {
+        const char* file = "tc_test_diag.dat";
+        save<ItensorReal>(ctx, sigma, file);
+        auto loaded = load<ItensorReal>(ctx, std::string(file));
+        CHECK(tc_test::at<ItensorReal>(ctx, loaded, {1, 0}) == 3.5);
+        std::remove(file);
+    }
+
+    // complex eye
+    auto ce = eye<ItensorCplx>(ctx, 3);
+    CHECK(tc_test::at<ItensorCplx>(ctx, ce, {0, 1}) == std::complex<double>(0, 0));
+    CHECK(tc_test::at<ItensorCplx>(ctx, ce, {1, 1}) == std::complex<double>(1, 0));
+
+    destroy_context(ctx);
+}
+
 // norm/size_bytes/close with zeroth-order
 void test_queries_zero_order()
 {
@@ -264,6 +349,7 @@ int main()
     tc_test::run_test("test_trace_zero_order", test_trace_zero_order);
     tc_test::run_test("test_bond_ops_zero_order_throw", test_bond_ops_zero_order_throw);
     tc_test::run_test("test_queries_zero_order", test_queries_zero_order);
+    tc_test::run_test("test_diag_tensors", test_diag_tensors);
 
     std::printf("%d checks, %d failures\n", tc_test::g_checks, tc_test::g_failures);
     return tc_test::g_failures == 0 ? 0 : 1;
