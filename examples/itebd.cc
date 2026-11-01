@@ -123,7 +123,7 @@ std::vector<double> itebd_imaginary_time(Context& ctx,
         tcapi::normalize<TenT>(ctx, lam_a_work);
         lam[a] = std::move(lam_a_work);
 
-        Tensor lam_b_work = lam[b];
+        auto lam_b_work = tcapi::copy(ctx, lam[b]);
         tcapi::for_each<TenT>(ctx, lam_b_work,
             [](double e) { return 1.0 / e; });
         Tensor lam_b_inv;

@@ -164,7 +164,7 @@ void test_itebd_imaginary_time()
         normalize<ItensorReal>(ctx, svec);
         la = std::move(svec);
 
-        auto lb_work = lb;
+        auto lb_work = copy(ctx, lb);
         for_each<ItensorReal>(ctx, lb_work, [](double e) { return 1.0 / e; });
         ten_t<ItensorReal> lb_inv;
         diag<ItensorReal>(ctx, lb_work, lb_inv);

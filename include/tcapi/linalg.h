@@ -234,7 +234,7 @@ real_t<TenT> normalize(context_handle_t<TenT>& ctx,
                        const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
-    out = in;
+    out = copy<TenT>(ctx, in);
     return normalize<TenT>(ctx, out);
 }
 
@@ -336,7 +336,7 @@ TenT linear_combine(context_handle_t<TenT>& ctx,
         if(k_inds.size() != ref_inds.size())
             throw std::invalid_argument("linear_combine: shape mismatch among inputs.");
 
-        auto term = ins[k].get();
+        auto term = copy<TenT>(ctx, ins[k].get());
         term = itensor::replaceInds(term, k_inds, ref_inds);
         out += coefs[k] * term;
     }

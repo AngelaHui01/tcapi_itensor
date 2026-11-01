@@ -365,7 +365,7 @@ void test_exp()
     const ten_t<ItensorReal>& Pc = P;
     ten_t<ItensorReal> EP, EM;
     exp<ItensorReal>(ctx, Pc, 1, EP);
-    auto Pm = P;
+    auto Pm = copy(ctx, P);
     for(long i = 0; i < 3; ++i)
         for(long j = 0; j < 3; ++j)
             set_elem<ItensorReal>(ctx, Pm, {i, j}, -tc_test::at<ItensorReal>(ctx, Pm, {i, j}));
