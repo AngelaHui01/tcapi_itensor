@@ -1,6 +1,6 @@
 # TCAPI - ITensor Backend
 
-[TCAPI (Tensor Computing API)](https://arxiv.org/abs/2512.23917) is a common tensor-computing interface for tensor-network applications. This repository provides a C++ backend implementation of TCAPI using the [ITensor library](https://itensor.org/).
+[TCAPI (Tensor Computing API)](https://arxiv.org/abs/2512.23917) (v2, arXiv:2512.23917v2) is a common tensor-computing interface for tensor-network applications. The specification is also available at [tensorcomputingapi.github.io](https://tensorcomputingapi.github.io/). This repository provides a C++ backend implementation of TCAPI using the [ITensor library](https://itensor.org/).
 
 The project is named `tcapi_itensor`; the C++ namespace is `tcapi`.
 
@@ -145,6 +145,50 @@ For tensor decompositions, `num_of_bds_as_row` controls how many leading tensor 
 
 Tensor-network example applications (e.g., a TRG demo and an iTEBD demo) are planned but not yet part of this repository. When added, they will be built by the CMake project as additional executables.
 
+## Changes for Spec v2
+
+This repository was updated from the original TCAPI spec (v1) to
+[arXiv:2512.23917v2](https://arxiv.org/abs/2512.23917). Notable breaking
+and non-breaking changes are listed below.
+
+### Breaking changes
+
+- **`trunc_svd` argument order** — the full overload now reads
+  `(..., trunc_err, chi_max, s_min, chi_min, target_trunc_err)`
+  per the v2 spec. The short overload `(..., trunc_err, chi_max, s_min)`
+  is unchanged.
+- **`concatenate`, `stack`, `linear_combine` now take
+  `const List<CRef<TenT>>&`** — callers supply inputs via
+  `std::cref()` references. Forwarding overloads accepting
+  `std::initializer_list<CRef<TenT>>` are provided for braceless
+  template deduction.
+
+### Other changes
+
+- **Zeroth-order (scalar) tensors** — shape `{}`, order `0`, size `1`.
+  All constructors, queries, manipulation and linalg routines now
+  handle or explicitly reject scalar inputs.
+- **Diagonal tensor storage** — `eye`, `svd`/`trunc_svd` sigma return
+  ITensor's compact diagITensor storage. Every TCAPI routine that
+  writes elements (e.g. `set_elem`) densifies transparently on write.
+- **`supported_ten_types_t`** — a `std::tuple` of every concrete tensor
+  type the backend provides (`ItensorReal`, `ItensorCplx`).
+- **Copy/move contract** — `tcapi::copy` (deep copy) and
+  `tcapi::move` (ownership transfer) are the portable alternatives to
+  plain copy construction. All library code uses them.
+- **iTEBD example** — default coupling changed to `g = 1.0` (critical
+  TFIM). Energies now use `-4/π` as the exact reference.
+
+## Supported tensor types
+
+This backend supports two concrete types:
+- `tcapi::ItensorReal` (element type `double`)
+- `tcapi::ItensorCplx` (element type `std::complex<double>`)
+
+Both are listed in `tcapi::supported_ten_types_t`. Only double precision
+is supported; the ITensor v3 library provides `Real` (`double`) and
+`Cplx` (`std::complex<double>`) natively.
+
 ## Development
 
 Useful commands:
@@ -160,7 +204,7 @@ ctest --test-dir build --output-on-failure
 ## Related Projects
 
 - [tcapi_numpy](https://github.com/<your-org>/tcapi_numpy): Pure Python/NumPy backend for TCAPI.
-- [TCAPI paper](https://arxiv.org/abs/2512.23917): Tensor Computing Interface specification and benchmarks.
+- [TCAPI paper (v2)](https://arxiv.org/abs/2512.23917): Tensor Computing Interface specification and benchmarks.
 
 ## License
 

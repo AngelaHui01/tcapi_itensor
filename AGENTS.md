@@ -4,7 +4,7 @@ This file encodes project conventions and the intended AI-assisted workflow for 
 
 ## Project Overview
 
-- **Goal:** Implement the C++ TCAPI specification on top of the ITensor library, with semantics matching the TCAPI paper and the Python/NumPy backend (`tcapi_numpy`).
+- **Goal:** Implement the C++ TCAPI specification (v2, arXiv:2512.23917v2, https://tensorcomputingapi.github.io/) on top of the ITensor library, with semantics matching the TCAPI paper and the Python/NumPy backend (`tcapi_numpy`).
 - **Language/Standard:** C++17
 - **Build system:** CMake (TCAPI project); ITensor is built separately by its own Make workflow and linked as an external dependency
 - **Backend:** ITensor v3 (`itensor/` is vendored in-tree, pre-built libs in `itensor/lib`)
@@ -23,8 +23,10 @@ tcapi_itensor/
 ├── include/
 │   └── tcapi/
 │       ├── tcapi.h          # single public header; include this to get all of tcapi
-│       ├── type_system.h    # auxiliary types, tensor_traits<TenT>, aliases, context
-│       ├── detail.h         # internal helpers (ensure_active, coordinate iteration)
+│       ├── type_system.h    # auxiliary types, tensor_traits<TenT>, aliases, context,
+│       │                    # CRef<T>, supported_ten_types_t
+│       ├── detail.h         # internal helpers (ensure_active, coordinate iteration,
+│       │                    # set_elem_impl with auto-densify)
 │       ├── queries.h        # order, shape, size, size_bytes, get_elem
 │       ├── constructors.h   # allocate, zeros, assign_from_range, random, eye, fill, copy, move, clear
 │       ├── io.h             # save, load
@@ -35,8 +37,9 @@ tcapi_itensor/
 │       │                    # exp, inverse, svd, trunc_svd, qr, lq, eig, eigvals, eigh, eigvalsh
 │       ├── misc.h           # create_context, destroy_context, version, show, close, convert, to_range
 │       └── diagnostics.h    # TCAPI_VERBOSE environment-variable diagnostics
-├── examples/               # examples/trg.cc (TRG for 2D Ising) -> binary build/trg
+├── examples/               # examples/trg.cc (TRG for 2D Ising), examples/itebd.cc (iTEBD for TFIM)
 └── tests/                  # test_<area>.cc + tc_test_util.h; binaries built into build/
+                            # test_zeroth_order.cc covers scalar tensor semantics
 ```
 
 The implementation is header-only (templates in `include/tcapi/`); there is no `src/`.
