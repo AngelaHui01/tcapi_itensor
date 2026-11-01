@@ -57,7 +57,6 @@ bool close(context_handle_t<TenT>& ctx,
         return false;
 
     auto sh = shape<TenT>(ctx, a);
-    if(sh.empty()) return true; // zeroth-order tensors have size 1
     ten_size_t<TenT> total = size<TenT>(ctx, a);
     if(total == 0) return true;
 

@@ -163,6 +163,8 @@ void diag(context_handle_t<TenT>& ctx, const TenT& in, TenT& out)
 {
     detail::ensure_active<TenT>(ctx);
     auto ord = order<TenT>(ctx, in);
+    if(ord == 0)
+        throw std::invalid_argument("diag: zeroth-order input has no bonds to extract a diagonal from.");
     auto in_shape = shape<TenT>(ctx, in);
 
     if(ord == 1)

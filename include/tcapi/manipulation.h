@@ -110,6 +110,10 @@ void transpose(context_handle_t<TenT>& ctx,
                const List<bond_idx_t<TenT>>& new_order,
                TenT& out)
 {
+    detail::ensure_active<TenT>(ctx);
+    auto ord = tcapi::order<TenT>(ctx, in);
+    if(ord == 0)
+        throw std::invalid_argument("transpose: zeroth-order tensor has no bonds to transpose.");
     detail::transpose_impl<TenT>(ctx, in, new_order, out);
 }
 
@@ -118,6 +122,10 @@ void transpose(context_handle_t<TenT>& ctx,
                TenT& inout,
                const List<bond_idx_t<TenT>>& new_order)
 {
+    detail::ensure_active<TenT>(ctx);
+    auto ord = tcapi::order<TenT>(ctx, inout);
+    if(ord == 0)
+        throw std::invalid_argument("transpose: zeroth-order tensor has no bonds to transpose.");
     TenT out;
     detail::transpose_impl<TenT>(ctx, inout, new_order, out);
     inout = std::move(out);
@@ -244,6 +252,10 @@ TenT concatenate(context_handle_t<TenT>& ctx,
                          bond_idx_t<TenT> concat_bdidx)
 {
     detail::ensure_active<TenT>(ctx);
+    if(ins.empty())
+        throw std::invalid_argument("concatenate: ins must be non-empty.");
+    if(order<TenT>(ctx, ins[0].get()) == 0)
+        throw std::invalid_argument("concatenate: zeroth-order tensors have no bonds to concatenate.");
     auto base_shape = shape<TenT>(ctx, ins[0].get());
     bond_dim_t<TenT> total = 0;
     for(auto const& t : ins) total += shape<TenT>(ctx, t.get())[concat_bdidx];
@@ -286,6 +298,8 @@ TenT stack(context_handle_t<TenT>& ctx,
     detail::ensure_active<TenT>(ctx);
     if(ins.empty())
         throw std::invalid_argument("stack: ins must be non-empty.");
+    if(order<TenT>(ctx, ins[0].get()) == 0)
+        throw std::invalid_argument("stack: zeroth-order tensors have no bonds to stack along.");
 
     auto base_shape = shape<TenT>(ctx, ins[0].get());
     shape_t<TenT> out_shape;
@@ -361,6 +375,9 @@ void expand(context_handle_t<TenT>& ctx,
             TenT& inout,
             const Map<bond_idx_t<TenT>, bond_dim_t<TenT>>& bond_idx_increment_map)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, inout) == 0)
+        throw std::invalid_argument("expand: zeroth-order tensor has no bonds to expand.");
     TenT out;
     detail::expand_impl<TenT>(ctx, inout, bond_idx_increment_map, out);
     inout = std::move(out);
@@ -372,6 +389,9 @@ void expand(context_handle_t<TenT>& ctx,
             const Map<bond_idx_t<TenT>, bond_dim_t<TenT>>& bond_idx_increment_map,
             TenT& out)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, in) == 0)
+        throw std::invalid_argument("expand: zeroth-order tensor has no bonds to expand.");
     detail::expand_impl<TenT>(ctx, in, bond_idx_increment_map, out);
 }
 
@@ -425,6 +445,9 @@ void shrink(context_handle_t<TenT>& ctx,
             TenT& inout,
             const detail::bond_idx_elem_coor_pair_map<TenT>& bdidx_elcoor_pair_map)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, inout) == 0)
+        throw std::invalid_argument("shrink: zeroth-order tensor has no bonds to shrink.");
     TenT out;
     detail::shrink_impl<TenT>(ctx, inout, bdidx_elcoor_pair_map, out);
     inout = std::move(out);
@@ -436,6 +459,9 @@ void shrink(context_handle_t<TenT>& ctx,
             const detail::bond_idx_elem_coor_pair_map<TenT>& bdidx_elcoor_pair_map,
             TenT& out)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, in) == 0)
+        throw std::invalid_argument("shrink: zeroth-order tensor has no bonds to shrink.");
     detail::shrink_impl<TenT>(ctx, in, bdidx_elcoor_pair_map, out);
 }
 
@@ -471,6 +497,9 @@ void extract_sub(context_handle_t<TenT>& ctx,
                  TenT& inout,
                  const List<Pair<elem_coor_t<TenT>, elem_coor_t<TenT>>>& coor_pairs)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, inout) == 0)
+        throw std::invalid_argument("extract_sub: zeroth-order tensor has no bonds to extract.");
     TenT out;
     detail::extract_sub_impl<TenT>(ctx, inout, coor_pairs, out);
     inout = std::move(out);
@@ -482,6 +511,9 @@ void extract_sub(context_handle_t<TenT>& ctx,
                  const List<Pair<elem_coor_t<TenT>, elem_coor_t<TenT>>>& coor_pairs,
                  TenT& out)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, in) == 0)
+        throw std::invalid_argument("extract_sub: zeroth-order tensor has no bonds to extract.");
     detail::extract_sub_impl<TenT>(ctx, in, coor_pairs, out);
 }
 
@@ -517,6 +549,9 @@ void replace_sub(context_handle_t<TenT>& ctx,
                  const TenT& sub,
                  const elem_coors_t<TenT>& begin_pt)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, inout) == 0 || order<TenT>(ctx, sub) == 0)
+        throw std::invalid_argument("replace_sub: zeroth-order tensors not supported.");
     TenT out;
     detail::replace_sub_impl<TenT>(ctx, inout, sub, begin_pt, out);
     inout = std::move(out);
@@ -529,6 +564,9 @@ void replace_sub(context_handle_t<TenT>& ctx,
                  const elem_coors_t<TenT>& begin_pt,
                  TenT& out)
 {
+    detail::ensure_active<TenT>(ctx);
+    if(order<TenT>(ctx, in) == 0 || order<TenT>(ctx, sub) == 0)
+        throw std::invalid_argument("replace_sub: zeroth-order tensors not supported.");
     detail::replace_sub_impl<TenT>(ctx, in, sub, begin_pt, out);
 }
 

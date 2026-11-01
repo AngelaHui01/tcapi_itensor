@@ -54,7 +54,8 @@ set(TEST_SOURCES
   tests/test_examples.cc
   tests/test_io_misc.cc
   tests/test_linalg.cc
-  tests/test_manipulation.cc)
+  tests/test_manipulation.cc
+  tests/test_zeroth_order.cc)
 
 foreach(src ${TEST_SOURCES})
   get_filename_component(tname ${src} NAME_WE)
