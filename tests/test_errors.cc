@@ -161,6 +161,16 @@ void test_trunc_svd_error()
     CHECK_THROW(std::invalid_argument,
                 trunc_svd<ItensorReal>(ctx, a, 2, u, s, vdag, err, 2, 0.0));
 
+    // all singular values below s_min -> throw
+    {
+        auto small = allocate<ItensorReal>(ctx, shape_t<ItensorReal>{3, 3});
+        set_elem<ItensorReal>(ctx, small, {0, 0}, 0.1);
+        set_elem<ItensorReal>(ctx, small, {1, 1}, 0.2);
+        set_elem<ItensorReal>(ctx, small, {2, 2}, 0.3);
+        CHECK_THROW(std::invalid_argument,
+                    trunc_svd<ItensorReal>(ctx, small, 1, u, s, vdag, err, 2, 1.0));
+    }
+
     destroy_context(ctx);
 }
 

@@ -646,62 +646,83 @@ void trunc_svd(context_handle_t<TenT>& ctx,
     if(num_of_bds_as_row < 1 ||
        num_of_bds_as_row >= static_cast<order_t<TenT>>(is.size()))
         throw std::invalid_argument("trunc_svd: invalid num_of_bds_as_row (must satisfy 1 <= k < r).");
-    if(chi_min < 0 || chi_max < chi_min)
-        throw std::invalid_argument("trunc_svd: invalid chi_min/chi_max range.");
+    if(chi_max < 1 || chi_min < 0 || chi_max < chi_min)
+        throw std::invalid_argument("trunc_svd: require chi_max >= 1 and 0 <= chi_min <= chi_max.");
 
     std::vector<itensor::Index> row_inds, col_inds;
     for(int b = 0; b < static_cast<int>(is.size()); ++b)
         (b < num_of_bds_as_row ? row_inds : col_inds).push_back(is[b]);
 
-    itensor::ITensor U{itensor::IndexSet(row_inds)};
-    itensor::ITensor S, V;
-    itensor::svd(a, U, S, V);
+    // ---- full SVD to inspect singular values ----
+    itensor::ITensor U_full{itensor::IndexSet(row_inds)};
+    itensor::ITensor S_full, V_full;
+    try { itensor::svd(a, U_full, S_full, V_full); }
+    catch(...)
+    {
+        throw std::runtime_error(std::string("trunc_svd: internal SVD failed."));
+    }
 
-    itensor::Index link  = itensor::commonIndex(U, S);
-    itensor::Index vlink = itensor::commonIndex(S, V);
+    itensor::Index link  = itensor::commonIndex(U_full, S_full);
+    itensor::Index vlink = itensor::commonIndex(S_full, V_full);
     int kappa = itensor::dim(link);
     List<real_t<TenT>> svals(kappa);
     for(int i = 1; i <= kappa; ++i)
-        svals[i - 1] = itensor::elt(S, link(i), vlink(i));
+        svals[i - 1] = itensor::elt(S_full, link(i), vlink(i));
 
     real_t<TenT> total2{0};
     for(auto s : svals) total2 += s * s;
 
-    int chi = 0;
+    // eps(chi) = sum_{i>=chi} s_i^2 / sum_i s_i^2 (paper Eq. C4), tail summed directly
+    // to avoid total - kept cancelling to 0 when the discarded values are small.
+    auto trunc_eps = [&](int keep) -> real_t<TenT>
+    {
+        if(!(total2 > 0)) return real_t<TenT>{0};
+        real_t<TenT> tail2{0};
+        for(int i = kappa - 1; i >= keep; --i) tail2 += svals[i] * svals[i];
+        return tail2 / total2;
+    };
+
+    // n_surv = singular values >= s_min (descending order)
+    int n_surv = 0;
     for(int i = 0; i < kappa; ++i)
     {
-        if(svals[i] < s_min) break;          // descending order
+        if(svals[i] < s_min) break;
+        ++n_surv;
+    }
+    if(n_surv == 0)
+        throw std::invalid_argument("trunc_svd: all singular values below s_min.");
+
+    // chi = clamp(max(chi_min, 0), 0, n_surv), floor at 1
+    int chi = (std::max)(static_cast<int>(chi_min), 0);
+    chi = (std::min)(chi, n_surv);
+    chi = (std::max)(chi, 1);
+
+    // grow chi to meet target truncation error, but never exceed n_surv or chi_max
+    while(chi < (std::min)(n_surv, static_cast<int>(chi_max)))
+    {
+        if(trunc_eps(chi) <= target_trunc_err) break;
         ++chi;
     }
-    if(chi < chi_min) chi = chi_min;
-    if(chi > kappa) chi = kappa;
-    if(chi > chi_max) chi = static_cast<int>(chi_max);
+    chi = (std::min)(chi, static_cast<int>(chi_max));
 
-    if(target_trunc_err >= real_t<TenT>{0})
-    {
-        while(chi < kappa && chi < static_cast<int>(chi_max))
-        {
-            real_t<TenT> kept2{0};
-            for(int i = 0; i < chi; ++i) kept2 += svals[i] * svals[i];
-            real_t<TenT> err = (total2 > 0) ? (total2 - kept2) / total2 : real_t<TenT>{0};
-            if(err <= target_trunc_err) break;
-            ++chi;
-        }
-    }
-
+    // second SVD forced to exact bond dimension chi
     itensor::ITensor U_trunc{itensor::IndexSet(row_inds)};
     itensor::ITensor S_trunc, V_trunc;
     itensor::svd(a, U_trunc, S_trunc, V_trunc,
-                 {"MaxDim=", chi, "Cutoff=", real_t<TenT>{0}});
+                 {"MinDim=", chi, "MaxDim=", chi, "Cutoff=", real_t<TenT>{0}});
+
+    // verify the bond dimension is exactly chi
+    auto sin = itensor::commonIndex(S_trunc, V_trunc);
+    if(itensor::dim(sin) != static_cast<long>(chi))
+        throw std::logic_error("trunc_svd: svd returned fewer dimensions than requested.");
 
     std::vector<itensor::Index> v_order;
-    v_order.push_back(itensor::commonIndex(S_trunc, V_trunc));
+    v_order.push_back(sin);
     v_order.insert(v_order.end(), col_inds.begin(), col_inds.end());
     itensor::ITensor vdag = itensor::permute(V_trunc, itensor::IndexSet(v_order));
 
-    real_t<TenT> kept2{0};
-    for(int i = 0; i < chi; ++i) kept2 += svals[i] * svals[i];
-    trunc_err = (total2 > 0) ? (total2 - kept2) / total2 : real_t<TenT>{0};
+    // truncation error = discarded weight / total weight
+    trunc_err = trunc_eps(chi);
 
     u = U_trunc;
     sigma = S_trunc;
@@ -719,8 +740,9 @@ void trunc_svd(context_handle_t<TenT>& ctx,
                bond_dim_t<TenT> chi_max,
                real_t<TenT> s_min)
 {
+    // Per spec: short form equivalent to full with chi_min=1, target_trunc_err=0
     trunc_svd<TenT>(ctx, a, num_of_bds_as_row, u, sigma, v_dag, trunc_err,
-                    chi_max, s_min, 0, real_t<TenT>{-1});
+                    chi_max, s_min, 1, real_t<TenT>{0});
 }
 
 template<typename TenT>

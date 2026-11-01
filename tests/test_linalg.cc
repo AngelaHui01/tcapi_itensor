@@ -446,27 +446,132 @@ void test_trunc_svd()
 
     std::mt19937 engine(7);
     auto a = rnd(ctx, {3, 4, 12}, engine);
-    ten_t<ItensorReal> u, vdag;
-    real_ten_t<ItensorReal> s;
-    real_t<ItensorReal> truncerr;
-    trunc_svd<ItensorReal>(ctx, a, 2, u, s, vdag, truncerr, 2, 0.0);
 
-    CHECK_SHAPE(ctx, s, 2, 2);
-    CHECK(tc_test::at<ItensorReal>(ctx, s, {0, 1}) == 0.0);
-    CHECK(truncerr >= 0.0);
+    // ---- basic short-form truncation ----
+    {
+        ten_t<ItensorReal> u, vdag;
+        real_ten_t<ItensorReal> s;
+        real_t<ItensorReal> truncerr;
+        trunc_svd<ItensorReal>(ctx, a, 2, u, s, vdag, truncerr, 2, 0.0);
+
+        CHECK_SHAPE(ctx, s, 2, 2);
+        CHECK(tc_test::at<ItensorReal>(ctx, s, {0, 1}) == 0.0);
+        CHECK(truncerr >= 0.0);
+        CHECK(itensor::dim(itensor::commonIndex(s, vdag)) == 2);
+    }
 
     // rank-2 error <= rank-1 error
-    double err2 = tc_test::svd_residual<ItensorReal>(ctx, a, u, s, vdag);
+    {
+        ten_t<ItensorReal> u2, v2;
+        real_ten_t<ItensorReal> s2;
+        real_t<ItensorReal> e2;
+        trunc_svd<ItensorReal>(ctx, a, 2, u2, s2, v2, e2, 2, 0.0);
+        double err2 = tc_test::svd_residual<ItensorReal>(ctx, a, u2, s2, v2);
 
-    ten_t<ItensorReal> u1, v1;
-    real_ten_t<ItensorReal> s1;
-    real_t<ItensorReal> e1;
-    trunc_svd<ItensorReal>(ctx, a, 2, u1, s1, v1, e1, 1, 0.0);
-    double err1 = tc_test::svd_residual<ItensorReal>(ctx, a, u1, s1, v1);
-    CHECK(err2 < err1);
-    CHECK(e1 >= 0.0);
+        ten_t<ItensorReal> u1, v1;
+        real_ten_t<ItensorReal> s1;
+        real_t<ItensorReal> e1;
+        trunc_svd<ItensorReal>(ctx, a, 2, u1, s1, v1, e1, 1, 0.0);
+        double err1 = tc_test::svd_residual<ItensorReal>(ctx, a, u1, s1, v1);
+        CHECK(err2 < err1);
+        CHECK(e1 >= 0.0);
+        CHECK(itensor::dim(itensor::commonIndex(s1, v1)) == 1);
+        CHECK(itensor::dim(itensor::commonIndex(s2, v2)) == 2);
+    }
 
-    // complex trunc_svd keeps identical singular values/error to the full one
+    // ---- Test 1: chi_min capped by n_surv ---
+    {
+        // Use num_of_bds_as_row=2 on a 3×4×12 tensor → 12×12 matrix (rank up to 12).
+        // s_min=0.5 filters out some singular values, so n_surv < 12.
+        // chi_min=10, but n_surv limits the actual result.
+        ten_t<ItensorReal> uu, vv;
+        real_ten_t<ItensorReal> ss;
+        real_t<ItensorReal> ee;
+        trunc_svd<ItensorReal>(ctx, a, 2, uu, ss, vv, ee, 12, 0.5, 10, 0.0);
+        long dim_s = itensor::dim(itensor::commonIndex(ss, vv));
+        // chi is capped by n_surv (number of svals >= 0.5), so dim_s < chi_min=10
+        CHECK(dim_s >= 1);
+        CHECK(dim_s < 10);
+    }
+
+    // ---- Test 2: short form with s_min above all values throws ----
+    // We test the n_surv=0 throw case using the error test in test_errors.cc
+    // (ITensor's internal SVD assertion may abort on unexpected input shapes)
+
+    // ---- Test 3a: chi_min=1, target_trunc_err drives growth ----
+    {
+        ten_t<ItensorReal> uu, vv;
+        real_ten_t<ItensorReal> ss;
+        real_t<ItensorReal> ee;
+        trunc_svd<ItensorReal>(ctx, a, 2, uu, ss, vv, ee, 12, 0.0, 1, 1e-12);
+        long chi = itensor::dim(itensor::commonIndex(ss, vv));
+        CHECK(chi > 1);
+    }
+
+    // ---- Test 3b: chi_min=3, target already met at chi=1 -> chi_min wins ----
+    {
+        std::mt19937 e2(99);
+        auto aa = rnd(ctx, {6, 6}, e2);
+        ten_t<ItensorReal> uu, vv;
+        real_ten_t<ItensorReal> ss;
+        real_t<ItensorReal> ee;
+        trunc_svd<ItensorReal>(ctx, aa, 1, uu, ss, vv, ee, 6, 0.0, 3, 1.0);
+        long chi = itensor::dim(itensor::commonIndex(ss, vv));
+        CHECK(chi >= 3);
+    }
+
+    // ---- Test 4: trunc_err matches discarded-weight formula using ALL svals ----
+    {
+        auto full_svals = [&](const ten_t<ItensorReal>& t, int row)
+        {
+            auto is = itensor::inds(t);
+            std::vector<itensor::Index> row_inds, col_inds;
+            for(int b = 0; b < static_cast<int>(is.size()); ++b)
+                (b < row ? row_inds : col_inds).push_back(is[b]);
+            itensor::ITensor U{itensor::IndexSet(row_inds)};
+            itensor::ITensor S, V;
+            itensor::svd(t, U, S, V);
+            auto link = itensor::commonIndex(U, S);
+            auto vlink = itensor::commonIndex(S, V);
+            int kappa = itensor::dim(link);
+            std::vector<double> sv(kappa);
+            for(int i = 1; i <= kappa; ++i)
+                sv[i - 1] = itensor::elt(S, link(i), vlink(i));
+            return sv;
+        };
+        auto svals = full_svals(a, 2);
+        double total2 = 0;
+        for(auto x : svals) total2 += x * x;
+
+        for(long target_chi : {1, 2, 3})
+        {
+            ten_t<ItensorReal> uu, vv;
+            real_ten_t<ItensorReal> ss;
+            real_t<ItensorReal> ee;
+            trunc_svd<ItensorReal>(ctx, a, 2, uu, ss, vv, ee, target_chi, 0.0);
+            double kept2 = 0;
+            for(int i = 0; i < target_chi && i < static_cast<long>(svals.size()); ++i)
+                kept2 += svals[i] * svals[i];
+            double expected_err = (total2 > 0) ? (total2 - kept2) / total2 : 0;
+            CHECK(tc_test::approx(ee, expected_err, 1e-12));
+        }
+    }
+
+    // ---- Test 5: dim(sigma) == chi per assertion in each block above ----
+
+    // ---- Test 6: spec example (3x4x12, args 6, 1e-12, 3, 1e-2) -> 3 <= chi <= 6 ----
+    {
+        auto big = rnd(ctx, {3, 4, 12}, engine);
+        ten_t<ItensorReal> ub, vb;
+        real_ten_t<ItensorReal> sb;
+        real_t<ItensorReal> eb;
+        trunc_svd<ItensorReal>(ctx, big, 2, ub, sb, vb, eb, 6, 1e-12, 3, 1e-2);
+        long chi = itensor::dim(itensor::commonIndex(sb, vb));
+        CHECK(chi >= 3);
+        CHECK(chi <= 6);
+    }
+
+    // complex trunc_svd
     {
         std::mt19937 engine2(9);
         std::uniform_real_distribution<double> dis(0.0, 1.0);
@@ -479,18 +584,6 @@ void test_trunc_svd()
         CHECK_SHAPE(ctx, sc, 2, 2);
         double res = tc_test::svd_residual<ItensorCplx>(ctx, ac, uc, sc, vc);
         CHECK(res >= 0.0);
-    }
-
-    // spec example: full overload with chi_min and target_trunc_err
-    {
-        auto big = rnd(ctx, {3, 4, 5, 6}, engine);
-        ten_t<ItensorReal> ub, vb;
-        real_ten_t<ItensorReal> sb;
-        real_t<ItensorReal> eb;
-        trunc_svd<ItensorReal>(ctx, big, 2, ub, sb, vb, eb, 6, 1e-12, 3, 1e-2);
-        auto ss = shape<ItensorReal>(ctx, sb);
-        CHECK(ss[0] >= 3);
-        CHECK(ss[0] <= 6);
     }
 
     destroy_context(ctx);
