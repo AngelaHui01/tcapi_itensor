@@ -481,6 +481,18 @@ void test_trunc_svd()
         CHECK(res >= 0.0);
     }
 
+    // spec example: full overload with chi_min and target_trunc_err
+    {
+        auto big = rnd(ctx, {3, 4, 5, 6}, engine);
+        ten_t<ItensorReal> ub, vb;
+        real_ten_t<ItensorReal> sb;
+        real_t<ItensorReal> eb;
+        trunc_svd<ItensorReal>(ctx, big, 2, ub, sb, vb, eb, 6, 1e-12, 3, 1e-2);
+        auto ss = shape<ItensorReal>(ctx, sb);
+        CHECK(ss[0] >= 3);
+        CHECK(ss[0] <= 6);
+    }
+
     destroy_context(ctx);
 }
 

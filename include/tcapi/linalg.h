@@ -634,10 +634,10 @@ void trunc_svd(context_handle_t<TenT>& ctx,
                real_ten_t<TenT>& sigma,
                TenT& v_dag,
                real_t<TenT>& trunc_err,
-               bond_dim_t<TenT> chi_min,
                bond_dim_t<TenT> chi_max,
-               real_t<TenT> target_trunc_err,
-               real_t<TenT> s_min)
+               real_t<TenT> s_min,
+               bond_dim_t<TenT> chi_min,
+               real_t<TenT> target_trunc_err)
 {
     detail::ensure_active<TenT>(ctx);
     auto is = itensor::inds(a);
@@ -718,7 +718,7 @@ void trunc_svd(context_handle_t<TenT>& ctx,
                real_t<TenT> s_min)
 {
     trunc_svd<TenT>(ctx, a, num_of_bds_as_row, u, sigma, v_dag, trunc_err,
-                    0, chi_max, real_t<TenT>{-1}, s_min);
+                    chi_max, s_min, 0, real_t<TenT>{-1});
 }
 
 template<typename TenT>
