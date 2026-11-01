@@ -5,6 +5,12 @@
 
 using namespace tcapi;
 
+// Compile-time: supported_ten_types_t lists every type with valid traits
+static_assert(!std::is_same_v<typename tensor_traits<ItensorReal>::elem_t, void>,
+              "ItensorReal must have valid tensor_traits");
+static_assert(!std::is_same_v<typename tensor_traits<ItensorCplx>::elem_t, void>,
+              "ItensorCplx must have valid tensor_traits");
+
 // allocate: shape/order, size, size_bytes, scalar (0-th order)
 void test_allocate()
 {
